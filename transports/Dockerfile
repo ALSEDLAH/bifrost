@@ -14,7 +14,10 @@
   # Skip the copy-build step since we'll copy the files in the Go build stage
   
   # --- Go Build Stage: Compile the Go binary ---
-  FROM golang:1.26.1-alpine3.23@sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039 AS builder
+  # Bumped from pinned 1.26.1 to 1.26-series floating tag for enterprise-parity
+  # fork: upstream go.mod files now require >=1.26.2 but the Dockerfile pin was
+  # stale and caused "requires go >= 1.26.2 (running go 1.26.1)" on build.
+  FROM golang:1.26-alpine3.23 AS builder
   WORKDIR /app
   
   # Install dependencies including gcc for CGO and sqlite
