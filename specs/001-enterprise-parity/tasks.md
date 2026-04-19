@@ -73,15 +73,15 @@ description: "Task list for Bifrost Enterprise Parity feature implementation"
 
 ### 2.1 Tenancy primitive
 
-- [ ] T011 Create module `framework/tenancy/` with `go.mod`; define `TenantContext` struct (fields: `OrganizationID`, `WorkspaceID`, `UserID`, `RoleScopes`, `ResolvedVia`) in `framework/tenancy/context.go` (research R-02).
-- [ ] T012 [P] Add tenancy context keys (`BifrostContextKeyOrganizationID`, `BifrostContextKeyWorkspaceID`, `BifrostContextKeyRoleScopes`) to the new `framework/tenancy/keys.go` — these are the authoritative names used by middleware and plugins (research R-02).
-- [ ] T013 Add `framework/tenancy/repository.go` with helpers `ScopedQuery(ctx, baseSQL, args...)` that automatically injects `WHERE organization_id = $1 AND workspace_id = $2` into queries (research R-03).
-- [ ] T014 Integration test: `framework/tenancy/tenancy_test.go` spins up PostgreSQL and verifies cross-tenant reads are blocked.
+- [x] T011 Create module `framework/tenancy/` with `go.mod`; define `TenantContext` struct (fields: `OrganizationID`, `WorkspaceID`, `UserID`, `RoleScopes`, `ResolvedVia`) in `framework/tenancy/context.go` (research R-02).
+- [x] T012 [P] Add tenancy context keys (`BifrostContextKeyOrganizationID`, `BifrostContextKeyWorkspaceID`, `BifrostContextKeyRoleScopes`) to the new `framework/tenancy/keys.go` — these are the authoritative names used by middleware and plugins (research R-02).
+- [x] T013 Add `framework/tenancy/repository.go` with helpers `ScopedQuery(ctx, baseSQL, args...)` that automatically injects `WHERE organization_id = $1 AND workspace_id = $2` into queries (research R-03).
+- [x] T014 Integration test: `framework/tenancy/tenancy_test.go` spins up PostgreSQL and verifies cross-tenant reads are blocked.
 
 ### 2.2 Unified encryption primitive
 
-- [ ] T015 [P] Create `framework/crypto/` module with `Encrypt`/`Decrypt` using configstore `encryption_key` as default backend in `framework/crypto/configkey.go`.
-- [ ] T016 [P] Define ciphertext envelope layout (`version | kek_ref_hash | dek_wrapped | nonce | ct+tag`) and helpers in `framework/crypto/envelope.go` (research R-05).
+- [x] T015 [P] Create `framework/crypto/` module with `Encrypt`/`Decrypt` using configstore `encryption_key` as default backend in `framework/crypto/configkey.go`.
+- [x] T016 [P] Define ciphertext envelope layout (`version | kek_ref_hash | dek_wrapped | nonce | ct+tag`) and helpers in `framework/crypto/envelope.go` (research R-05).
 
 ### 2.3 Tenancy migration for existing tables
 
