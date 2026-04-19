@@ -1,0 +1,76 @@
+---
+title: "Enterprise Features"
+description: "Bifrost Enterprise capability index — multi-tenant orgs/workspaces, RBAC, SSO/SCIM, audit logs, central guardrails, BYOK, cloud commercial billing, and more."
+---
+
+# Bifrost Enterprise
+
+This section indexes the enterprise capabilities added on top of the
+open-source Bifrost gateway. The full design lives in the spec at
+[`specs/001-enterprise-parity/`](https://github.com/maximhq/bifrost/tree/main/specs/001-enterprise-parity).
+
+## Deployment Modes
+
+Bifrost ships one binary that runs in three modes:
+
+| Mode | Use case | Multi-org | License | Phone-home | Metering/Billing |
+|------|----------|:---------:|:-------:|:----------:|:----------------:|
+| `cloud` | Vendor-hosted SaaS | enabled | not required | enabled | enabled |
+| `selfhosted` | Customer on-prem | disabled (single org, schema-ready) | required | off by default | disabled |
+| `airgapped` | Customer on-prem, no outbound | disabled | required | forbidden | disabled |
+
+See [deployment-modes](./deployment-modes.mdx) for full details.
+
+## Capability Index
+
+### Tenancy & Identity (Train A — v1.6.0)
+
+- [Organizations & Workspaces](./organizations-workspaces.mdx)
+- [Granular RBAC](./rbac.mdx)
+- [SSO (SAML 2.0 + OIDC)](./sso.mdx)
+- [Audit Logs](./audit-logs.mdx)
+- [Admin API Keys](./admin-api-keys.mdx)
+
+### Governance Depth (Train B — v1.7.0)
+
+- [Central Guardrails](./central-guardrails.mdx)
+- [PII Anonymizer](./pii-redaction.mdx)
+- [Granular Budgets & Rate Limits](./budgets-rate-limits.mdx)
+- [Custom Guardrail Webhooks](./custom-guardrail-webhook.mdx)
+
+### Observability + DX (Train C — v1.8.0)
+
+- [Alerts & Notifications](./alerts.mdx)
+- [Log Export](./log-export.mdx)
+- [Executive Dashboard](./executive-dashboard.mdx)
+- [Custom Retention Periods](./retention-policies.mdx)
+- [Prompt Library](./prompt-library.mdx)
+- [Prompt Playground](./prompt-playground.mdx)
+- [Declarative Configs](./configs.mdx)
+- [Service Account API Keys](./service-account-keys.mdx)
+
+### Security + Ecosystem (Train D — v1.9.0)
+
+- [BYOK (Customer-Managed Encryption)](./byok.mdx)
+- [Air-Gapped Deployment](./airgapped-deployment.mdx)
+- [SCIM 2.0](./scim.mdx)
+- [Terraform Provider](./terraform-provider.mdx)
+- [Canary Routing](./canary.mdx)
+- [Data Lake Export](./data-lake-export.mdx)
+
+### Cloud Commercial (Train E — v2.0.0, cloud mode only)
+
+- [Licensing (self-hosted)](./licensing.mdx)
+- [Usage Metering](./usage-metering.mdx)
+- [Billing & Subscriptions](./billing.mdx)
+- [Tiers & Plans](./tiers-and-plans.mdx)
+
+## Compliance
+
+A consolidated compliance mapping (SOC 2, ISO 27001, HIPAA, GDPR) lives
+at [compliance.mdx](./compliance.mdx).
+
+## For Operators
+
+- Self-hosted setup quickstart: [`specs/001-enterprise-parity/quickstart.md`](https://github.com/maximhq/bifrost/blob/main/specs/001-enterprise-parity/quickstart.md)
+- Upstream sync runbook (fork maintainers): [`UPSTREAM-SYNC.md`](https://github.com/maximhq/bifrost/blob/main/UPSTREAM-SYNC.md)

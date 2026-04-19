@@ -1,0 +1,863 @@
+openapi: 3.1.0
+info:
+  title: Bifrost Enterprise Admin API
+  version: 1.6.0
+  description: |
+    Admin API surface added by the Bifrost Enterprise Parity feature.
+    Every endpoint listed here is NEW; existing v1.5.2 endpoints are
+    unchanged and retain their v1.5.2 contract.
+
+    Authentication: Bearer token. Token types:
+      - Admin API Key (org-scoped): `Authorization: Bearer bf-admin-…`
+      - Service Account API Key (workspace-scoped): `bf-svc-…`
+      - Session cookie (UI): `bifrost_session=…`
+
+    All responses include the resolved tenant context in response
+    headers `x-bifrost-organization-id` and `x-bifrost-workspace-id`
+    when applicable.
+  contact:
+    name: Bifrost Enterprise
+servers:
+  - url: /v1
+
+security:
+  - bearer: []
+
+tags:
+  - name: Organizations
+  - name: Workspaces
+  - name: Users
+  - name: Roles
+  - name: AdminApiKeys
+  - name: ServiceAccountKeys
+  - name: SSO
+  - name: SCIM
+  - name: AuditLogs
+  - name: Guardrails
+  - name: Alerts
+  - name: LogExports
+  - name: Retention
+  - name: PromptLibrary
+  - name: Configs
+  - name: KMS
+  - name: ExecutiveDashboard
+
+paths:
+
+  /admin/organizations/current:
+    get:
+      tags: [Organizations]
+      summary: Get current organization
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+
+  /admin/workspaces:
+    get:
+      tags: [Workspaces]
+      summary: List workspaces
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Workspace' }
+    post:
+      tags: [Workspaces]
+      summary: Create workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkspaceCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+
+  /admin/workspaces/{workspaceId}:
+    parameters:
+      - in: path
+        name: workspaceId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Workspaces]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+    patch:
+      tags: [Workspaces]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkspacePatch' }
+      responses:
+        '200':
+          description: OK
+    delete:
+      tags: [Workspaces]
+      description: Soft-delete with 30-day grace.
+      responses:
+        '204':
+          description: Deleted
+
+  /admin/users:
+    get:
+      tags: [Users]
+      summary: List users
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [Users]
+      summary: Invite user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserInvite' }
+      responses:
+        '201':
+          description: Invited
+
+  /admin/users/{userId}/roles:
+    post:
+      tags: [Users, Roles]
+      summary: Assign role to user (org-wide or workspace-scoped)
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleAssignment' }
+      responses:
+        '200':
+          description: Role assigned
+
+  /admin/roles:
+    get:
+      tags: [Roles]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [Roles]
+      summary: Create custom role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleCreate' }
+      responses:
+        '201':
+          description: Created
+
+  /admin/admin-api-keys:
+    get:
+      tags: [AdminApiKeys]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [AdminApiKeys]
+      summary: Create admin API key (key value returned ONCE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminKeyCreate' }
+      responses:
+        '201':
+          description: Created — value shown once in `key` field
+
+  /admin/admin-api-keys/{keyId}/rotate:
+    post:
+      tags: [AdminApiKeys]
+      parameters:
+        - in: path
+          name: keyId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Rotated — old key enters 60s grace period
+
+  /admin/service-account-keys:
+    get:
+      tags: [ServiceAccountKeys]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [ServiceAccountKeys]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceAccountCreate' }
+      responses:
+        '201':
+          description: Created — value shown once
+
+  /admin/sso/configs:
+    put:
+      tags: [SSO]
+      summary: Replace the organization's SSO configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SSOConfig' }
+      responses:
+        '200':
+          description: Applied
+    get:
+      tags: [SSO]
+      responses:
+        '200':
+          description: OK
+
+  /admin/sso/saml/callback:
+    post:
+      tags: [SSO]
+      summary: SAML assertion consumer endpoint
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                SAMLResponse: { type: string }
+      responses:
+        '302':
+          description: Redirect to UI post-login
+
+  /admin/sso/oidc/callback:
+    get:
+      tags: [SSO]
+      summary: OIDC callback endpoint
+      parameters:
+        - in: query
+          name: code
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+      responses:
+        '302':
+          description: Redirect to UI post-login
+
+  /scim/v2/Users:
+    get:
+      tags: [SCIM]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [SCIM]
+      responses:
+        '201':
+          description: Created
+
+  /scim/v2/Users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      tags: [SCIM]
+      responses:
+        '200':
+          description: OK
+    patch:
+      tags: [SCIM]
+      responses:
+        '200':
+          description: Patched
+    delete:
+      tags: [SCIM]
+      responses:
+        '204':
+          description: Deleted
+
+  /scim/v2/Groups:
+    get:
+      tags: [SCIM]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [SCIM]
+      responses:
+        '201':
+          description: Created
+
+  /admin/audit-logs:
+    get:
+      tags: [AuditLogs]
+      parameters:
+        - in: query
+          name: actor
+          schema: { type: string }
+        - in: query
+          name: action
+          schema: { type: string }
+        - in: query
+          name: resource_type
+          schema: { type: string }
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+        - in: query
+          name: until
+          schema: { type: string, format: date-time }
+        - in: query
+          name: outcome
+          schema:
+            type: string
+            enum: [allowed, denied, error]
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: '#/components/schemas/AuditEntry' }
+                  next_cursor:
+                    type: string
+                    nullable: true
+
+  /admin/audit-logs/export:
+    get:
+      tags: [AuditLogs]
+      parameters:
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [csv, json]
+        - in: query
+          name: actor
+          schema: { type: string }
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Exported file stream
+
+  /admin/guardrails/central:
+    get:
+      tags: [Guardrails]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [Guardrails]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GuardrailPolicy' }
+      responses:
+        '201':
+          description: Created
+
+  /admin/alerts/rules:
+    get:
+      tags: [Alerts]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [Alerts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AlertRule' }
+      responses:
+        '201':
+          description: Created
+
+  /admin/alerts/destinations:
+    get:
+      tags: [Alerts]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [Alerts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AlertDestination' }
+      responses:
+        '201':
+          description: Created
+
+  /admin/log-exports:
+    get:
+      tags: [LogExports]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [LogExports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LogExportConfig' }
+      responses:
+        '201':
+          description: Created
+
+  /admin/retention-policies:
+    get:
+      tags: [Retention]
+      responses:
+        '200':
+          description: OK
+    put:
+      tags: [Retention]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RetentionPolicy' }
+      responses:
+        '200':
+          description: Applied
+
+  /admin/prompts:
+    get:
+      tags: [PromptLibrary]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [PromptLibrary]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PromptCreate' }
+      responses:
+        '201':
+          description: Created
+
+  /admin/prompts/{id}/versions:
+    post:
+      tags: [PromptLibrary]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PromptVersionCreate' }
+      responses:
+        '201':
+          description: Version created
+
+  /prompts/{id}/render:
+    post:
+      tags: [PromptLibrary]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: version
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                variables:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Rendered prompt
+
+  /prompts/{id}/completions:
+    post:
+      tags: [PromptLibrary]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: version
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                variables:
+                  type: object
+                  additionalProperties: true
+                model:
+                  type: string
+      responses:
+        '200':
+          description: Provider response (same shape as /v1/chat/completions)
+
+  /admin/configs:
+    get:
+      tags: [Configs]
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [Configs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigObject' }
+      responses:
+        '201':
+          description: Created
+
+  /admin/kms/configs:
+    get:
+      tags: [KMS]
+      responses:
+        '200':
+          description: OK
+    put:
+      tags: [KMS]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KmsConfig' }
+      responses:
+        '200':
+          description: Applied
+
+  /admin/executive/summary:
+    get:
+      tags: [ExecutiveDashboard]
+      parameters:
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+        - in: query
+          name: until
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Executive rollup metrics
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+
+  schemas:
+    Organization:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        is_default: { type: boolean }
+        sso_required: { type: boolean }
+        default_retention_days: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    Workspace:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        log_retention_days: { type: integer, nullable: true }
+        metric_retention_days: { type: integer, nullable: true }
+        payload_encryption_enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    WorkspaceCreate:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+
+    WorkspacePatch:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        log_retention_days: { type: integer }
+        metric_retention_days: { type: integer }
+        payload_encryption_enabled: { type: boolean }
+
+    UserInvite:
+      type: object
+      required: [email, default_role_id]
+      properties:
+        email: { type: string, format: email }
+        default_role_id: { type: string, format: uuid }
+        workspace_ids:
+          type: array
+          items: { type: string, format: uuid }
+
+    RoleCreate:
+      type: object
+      required: [name, scope_json]
+      properties:
+        name: { type: string }
+        scope_json:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+              enum: [read, write, delete]
+
+    RoleAssignment:
+      type: object
+      required: [role_id]
+      properties:
+        role_id: { type: string, format: uuid }
+        workspace_id: { type: string, format: uuid, nullable: true }
+
+    AdminKeyCreate:
+      type: object
+      required: [name, scope_json, expires_at]
+      properties:
+        name: { type: string }
+        scope_json:
+          type: object
+          additionalProperties: true
+        expires_at: { type: string, format: date-time }
+
+    ServiceAccountCreate:
+      type: object
+      required: [name, workspace_id, scope_json]
+      properties:
+        name: { type: string }
+        workspace_id: { type: string, format: uuid }
+        scope_json:
+          type: object
+          additionalProperties: true
+        expires_at: { type: string, format: date-time, nullable: true }
+
+    SSOConfig:
+      type: object
+      properties:
+        provider: { type: string, enum: [saml, oidc] }
+        issuer_url: { type: string, nullable: true }
+        client_id: { type: string, nullable: true }
+        client_secret: { type: string, nullable: true }
+        metadata_xml: { type: string, nullable: true }
+        signing_certificate: { type: string, nullable: true }
+        group_role_map:
+          type: object
+          additionalProperties: { type: string }
+        default_role_id: { type: string, format: uuid, nullable: true }
+        auto_accept_invites: { type: boolean }
+        is_required: { type: boolean }
+
+    AuditEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        workspace_id: { type: string, format: uuid, nullable: true }
+        actor_type: { type: string, enum: [user, admin_api_key, service_account, system] }
+        actor_id: { type: string, format: uuid, nullable: true }
+        actor_display: { type: string }
+        actor_ip: { type: string }
+        action: { type: string }
+        resource_type: { type: string }
+        resource_id: { type: string, format: uuid, nullable: true }
+        outcome: { type: string, enum: [allowed, denied, error] }
+        reason: { type: string, nullable: true }
+        before_json: { type: object, nullable: true, additionalProperties: true }
+        after_json: { type: object, nullable: true, additionalProperties: true }
+        request_id: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    GuardrailPolicy:
+      type: object
+      required: [name, type, applies_to, action_on_fail]
+      properties:
+        name: { type: string }
+        workspace_id: { type: string, format: uuid, nullable: true }
+        virtual_key_id: { type: string, format: uuid, nullable: true }
+        type: { type: string, enum: [deterministic, llm_based, partner, custom_webhook] }
+        subtype: { type: string }
+        config_json:
+          type: object
+          additionalProperties: true
+        applies_to: { type: string, enum: [input, output, both] }
+        execution_mode: { type: string, enum: [sync_parallel, sync_sequential, async] }
+        composition_policy: { type: string, enum: [any_deny, all_pass, majority] }
+        action_on_fail: { type: string, enum: [deny, warn, retry, fallback, log_only] }
+        fallback_target_json:
+          type: object
+          additionalProperties: true
+          nullable: true
+        on_timeout_policy: { type: string, enum: [fail_open, fail_closed] }
+        timeout_ms: { type: integer }
+        enabled: { type: boolean }
+        execution_order: { type: integer }
+
+    AlertRule:
+      type: object
+      required: [name, metric, operator, threshold, window_seconds]
+      properties:
+        name: { type: string }
+        workspace_id: { type: string, format: uuid, nullable: true }
+        metric:
+          type: string
+          enum:
+            [ error_rate, latency_p50, latency_p95, latency_p99,
+              cost_per_hour, feedback_score, budget_threshold,
+              guardrail_block_rate ]
+        operator: { type: string, enum: [gt, gte, lt, lte, eq] }
+        threshold: { type: number }
+        window_seconds: { type: integer }
+        cooldown_seconds: { type: integer }
+        destinations:
+          type: array
+          items: { type: string, format: uuid }
+
+    AlertDestination:
+      type: object
+      required: [type, config_json]
+      properties:
+        type: { type: string, enum: [webhook, slack, email] }
+        config_json:
+          type: object
+          additionalProperties: true
+
+    LogExportConfig:
+      type: object
+      required: [destination_type, mode, destination_config_json]
+      properties:
+        workspace_id: { type: string, format: uuid, nullable: true }
+        destination_type: { type: string, enum: [s3, azure_blob, gcs, mongodb, otlp] }
+        destination_config_json:
+          type: object
+          additionalProperties: true
+        mode: { type: string, enum: [streaming, scheduled] }
+        stream_interval_seconds: { type: integer }
+        cron_expression: { type: string }
+        partition_scheme: { type: string }
+        record_schema_json:
+          type: object
+          additionalProperties: true
+        enabled: { type: boolean }
+
+    RetentionPolicy:
+      type: object
+      required: [workspace_id, log_retention_days, metric_retention_days]
+      properties:
+        workspace_id: { type: string, format: uuid }
+        log_retention_days: { type: integer }
+        metric_retention_days: { type: integer }
+
+    PromptCreate:
+      type: object
+      required: [name, workspace_id]
+      properties:
+        name: { type: string }
+        workspace_id: { type: string, format: uuid }
+        folder_path: { type: string }
+        metadata_json:
+          type: object
+          additionalProperties: true
+
+    PromptVersionCreate:
+      type: object
+      required: [content_json]
+      properties:
+        content_json:
+          type: object
+          additionalProperties: true
+        variables_schema_json:
+          type: object
+          additionalProperties: true
+        partials_refs:
+          type: array
+          items: { type: string, format: uuid }
+        commit_message: { type: string }
+
+    ConfigObject:
+      type: object
+      required: [name, workspace_id, document_json]
+      properties:
+        name: { type: string }
+        workspace_id: { type: string, format: uuid }
+        document_json:
+          type: object
+          description: |
+            Declarative routing document with keys: strategy
+            (primary+fallbacks), retries, cache, guardrails,
+            metadata, canary.
+          additionalProperties: true
+
+    KmsConfig:
+      type: object
+      required: [provider, key_ref, applies_to]
+      properties:
+        provider: { type: string, enum: [aws_kms, azure_key_vault, gcp_kms, configstore_key] }
+        key_ref: { type: string }
+        auth_json:
+          type: object
+          additionalProperties: true
+        dek_cache_ttl_seconds: { type: integer }
+        applies_to:
+          type: array
+          items:
+            type: object
+            required: [entity, enabled]
+            properties:
+              entity: { type: string }
+              enabled: { type: boolean }

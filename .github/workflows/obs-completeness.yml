@@ -1,0 +1,21 @@
+name: Observability Completeness Check
+
+# Constitution Principle VI — Observability Mandatory
+# Asserts every enterprise plugin emits OTEL spans + Prometheus metrics + audit entries.
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-obs-completeness:
+    name: Enterprise plugins emit OTEL + Prometheus + audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/check-obs-completeness.sh

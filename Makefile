@@ -1473,3 +1473,36 @@ test-cli: install-gotestsum ## Run CLI tests
 		--format=$(GOTESTSUM_FORMAT) \
 		--junitfile=../$(TEST_REPORTS_DIR)/cli.xml \
 		-- ./...
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Enterprise targets (Constitution Principle XI — additive-by-sibling-file).
+# All targets below are append-only; upstream Makefile body is not modified.
+# ─────────────────────────────────────────────────────────────────────────────
+
+.PHONY: check-imports check-obs-completeness test-enterprise upstream-sync drift-check
+
+check-imports: ## Enforce core→framework→plugins→transports→ui import direction (Constitution Principle X)
+	@$(ECHO) "$(GREEN)Checking import direction across modules...$(NC)"
+	@bash scripts/check-imports.sh
+
+check-obs-completeness: ## Assert every enterprise plugin emits OTEL + Prometheus + audit (Constitution Principle VI)
+	@$(ECHO) "$(GREEN)Checking observability completeness for enterprise plugins...$(NC)"
+	@bash scripts/check-obs-completeness.sh
+
+test-enterprise: install-gotestsum ## Run enterprise integration tests against real PostgreSQL/Redis/Weaviate/minio
+	@$(ECHO) "$(GREEN)Running enterprise integration tests...$(NC)"
+	@$(ECHO) "$(YELLOW)Requires docker-compose.enterprise.yml stack to be running.$(NC)"
+	@$(ECHO) "$(YELLOW)Start it with: docker compose -f docker-compose.enterprise.yml up -d$(NC)"
+	@mkdir -p $(TEST_REPORTS_DIR)
+	@cd framework && gotestsum \
+		--format=$(GOTESTSUM_FORMAT) \
+		--junitfile=../$(TEST_REPORTS_DIR)/enterprise-framework.xml \
+		-- -tags=integration ./tables-enterprise/... ./tenancy/... ./crypto/... ./license/...
+
+upstream-sync: ## Fetch upstream/main, merge --no-ff, run gates (Constitution Principle XI rule 5)
+	@$(ECHO) "$(GREEN)Running upstream sync workflow...$(NC)"
+	@bash scripts/upstream-sync.sh
+
+drift-check: ## Compute fork-vs-upstream diff size on the watch list (Constitution Principle XI rule 6)
+	@$(ECHO) "$(GREEN)Checking fork drift versus upstream/main...$(NC)"
+	@bash scripts/drift-check.sh

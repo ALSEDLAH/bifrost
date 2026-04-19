@@ -69,4 +69,21 @@ Note any security implications (auth, secrets, PII, sandboxing, etc.).
 - [ ] I verified builds succeed (Go and UI)
 - [ ] I verified the CI pipeline passes locally if applicable
 
+## Constitution Compliance (enterprise PRs only — skip for upstream-only changes)
+
+The Bifrost enterprise constitution lives at `.specify/memory/constitution.md`.
+Confirm each principle this PR may touch:
+
+- [ ] **I. Core Immutability** — no edits under `core/**`
+- [ ] **II. Non-Breaking** — new config fields optional with safe defaults; existing plugin hook signatures stable
+- [ ] **III. Plugin-First** — feature lives under `plugins/<name>/` or `framework/<subsystem>/`
+- [ ] **IV. Config-Driven Gating** — feature toggle via `config.json`; no build tags
+- [ ] **V. Multi-Tenancy First** — new tables carry `organization_id` / `workspace_id`
+- [ ] **VI. Observability** — OTEL span + Prometheus metric + audit emit all wired
+- [ ] **VII. Security by Default** — secrets encrypted at rest, TLS required, redaction hooked
+- [ ] **VIII. Test Coverage** — integration tests on real PostgreSQL/vectorstore; Playwright for UI
+- [ ] **IX. Docs & Schema Sync** — `config.schema.enterprise.json` updated, MDX in `docs/enterprise/`, changelog entry in affected modules
+- [ ] **X. Dependency Hierarchy** — no reverse imports; plugin module independent
+- [ ] **XI. Upstream-Mergeability** — additive-by-sibling-file; `E###_` migration IDs; schema overlay; hook anchors only on upstream files
+
 

@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "https://www.getbifrost.ai/schema/enterprise",
+  "title": "Bifrost Enterprise Configuration Overlay",
+  "description": "All enterprise-feature fields. Composed into transports/config.schema.json at boot via the schema overlay loader (Constitution Principle XI rule 3). Default 'enabled: false' preserves OSS behavior; an existing v1.5.2 deployment upgrading with no config change sees no behavior delta.",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Master switch for the enterprise feature surface. When false, no enterprise plugin loads, no enterprise migrations run, and behavior is byte-identical to OSS Bifrost."
+    },
+    "deployment": {
+      "type": "object",
+      "description": "Deployment mode + opinionated defaults for multi-org, telemetry, licensing, metering. See plan.md §Deployment Modes.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["cloud", "selfhosted", "airgapped"],
+          "default": "selfhosted",
+          "description": "cloud = vendor SaaS (multi-org, metering, billing); selfhosted = customer on-prem (single-org, license-key gated, no phone-home by default); airgapped = customer on-prem with no outbound (MVP feature subset only)."
+        },
+        "multi_org_enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Activates multi-organization mode. Always true in cloud mode; false in selfhosted/airgapped v1."
+        },
+        "telemetry": {
+          "type": "object",
+          "properties": {
+            "phone_home": {
+              "type": "boolean",
+              "default": false,
+              "description": "Anonymous version-ping telemetry to vendor. Default OFF for selfhosted; permanently OFF for airgapped (enforced); default ON for cloud."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "license": {
+      "type": "object",
+      "description": "License file location for selfhosted/airgapped modes. Cloud mode does not require a license.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Filesystem path to the signed JWT license file. Default: /etc/bifrost/license.jwt. The license plugin verifies the signature offline against an embedded vendor public key."
+        }
+      },
+      "additionalProperties": false
+    },
+    "orgs_workspaces": {
+      "type": "object",
+      "description": "Organizations + Workspaces multi-tenant isolation (US1).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sso": {
+      "type": "object",
+      "description": "Enterprise SSO via SAML 2.0 / OIDC (US3). Note: Bifrost upstream already has SCIM scaffolding; the enterprise SSO overlay extends rather than replaces it.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "provider": { "type": "string", "enum": ["saml", "oidc"] },
+        "issuer_url": { "type": "string", "format": "uri" },
+        "client_id": { "type": "string" },
+        "client_secret": { "type": "string", "description": "Use env.<ENV_VAR> to source from environment." },
+        "metadata_xml": { "type": "string" },
+        "signing_certificate": { "type": "string" },
+        "auto_accept_invites": { "type": "boolean", "default": true },
+        "is_required": { "type": "boolean", "default": false },
+        "default_role": { "type": "string", "default": "Member" },
+        "group_role_map": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "provider": { "const": "oidc" } }, "required": ["provider"] },
+          "then": { "required": ["issuer_url", "client_id", "client_secret"] }
+        },
+        {
+          "if": { "properties": { "provider": { "const": "saml" } }, "required": ["provider"] },
+          "then": { "required": ["metadata_xml", "signing_certificate"] }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "guardrails": {
+      "type": "object",
+      "description": "Central org-wide guardrails (US6). Note: Bifrost upstream already has guardrails_config scaffolding; this overlay adds central + custom-webhook surface.",
+      "properties": {
+        "central": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/central_guardrail" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "pii_redaction": {
+      "type": "object",
+      "description": "PII redaction (US7).",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "mode": {
+          "type": "string",
+          "enum": ["redact-in-logs-only", "redact-before-provider"],
+          "default": "redact-in-logs-only"
+        },
+        "patterns": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["ssn", "credit_card", "phone", "email", "ipv4", "ipv6", "iban", "mac", "phi"] }
+        },
+        "custom_regexes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "pattern": { "type": "string" }
+            },
+            "required": ["name", "pattern"]
+          }
+        },
+        "fail_closed": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "alerts": {
+      "type": "object",
+      "description": "Threshold alerts (US10).",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/alert_rule" } },
+        "destinations": { "type": "array", "items": { "$ref": "#/$defs/alert_destination" } }
+      },
+      "additionalProperties": false
+    },
+    "log_exports": {
+      "type": "array",
+      "description": "Log export sinks (US11).",
+      "items": { "$ref": "#/$defs/log_export_config" }
+    },
+    "retention": {
+      "type": "object",
+      "description": "Per-workspace log/metric retention overrides (US13).",
+      "additionalProperties": false
+    },
+    "prompt_library": {
+      "type": "object",
+      "description": "Prompt library (US14).",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "configs": {
+      "type": "object",
+      "description": "Declarative routing configs (US16) including canary primitive (US22).",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "service_accounts": {
+      "type": "object",
+      "description": "Service account API keys (US17).",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "kms": {
+      "type": "array",
+      "description": "BYOK KMS configurations (US18).",
+      "items": { "$ref": "#/$defs/kms_config" }
+    },
+    "data_lake_exports": {
+      "type": "array",
+      "description": "Curated data lake ETL exports (US23).",
+      "items": { "type": "object" }
+    },
+    "billing": {
+      "type": "object",
+      "description": "Stripe billing — cloud mode only (US27).",
+      "properties": {
+        "stripe": {
+          "type": "object",
+          "properties": {
+            "api_key_env": { "type": "string", "description": "Env var holding the Stripe secret key." },
+            "webhook_secret_env": { "type": "string" },
+            "tier_price_ids": {
+              "type": "object",
+              "properties": {
+                "dev": { "type": "string" },
+                "prod": { "type": "string" },
+                "prod_overage": { "type": "string" },
+                "enterprise": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "central_guardrail": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["deterministic", "llm_based", "partner", "custom_webhook"] },
+        "subtype": { "type": "string" },
+        "applies_to": { "type": "string", "enum": ["input", "output", "both"], "default": "both" },
+        "execution_mode": { "type": "string", "enum": ["sync_parallel", "sync_sequential", "async"], "default": "sync_parallel" },
+        "composition_policy": { "type": "string", "enum": ["any_deny", "all_pass", "majority"], "default": "any_deny" },
+        "action_on_fail": { "type": "string", "enum": ["deny", "warn", "retry", "fallback", "log_only"] },
+        "fallback_target": { "type": "object" },
+        "on_timeout_policy": { "type": "string", "enum": ["fail_open", "fail_closed"], "default": "fail_closed" },
+        "timeout_ms": { "type": "integer", "default": 500, "minimum": 1 },
+        "enabled": { "type": "boolean", "default": true },
+        "execution_order": { "type": "integer", "default": 0 },
+        "config": { "type": "object", "additionalProperties": true }
+      },
+      "required": ["name", "type", "applies_to", "action_on_fail"],
+      "additionalProperties": false
+    },
+    "alert_rule": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "metric": {
+          "type": "string",
+          "enum": ["error_rate", "latency_p50", "latency_p95", "latency_p99", "cost_per_hour", "feedback_score", "budget_threshold", "guardrail_block_rate"]
+        },
+        "operator": { "type": "string", "enum": ["gt", "gte", "lt", "lte", "eq"] },
+        "threshold": { "type": "number" },
+        "window_seconds": { "type": "integer" },
+        "cooldown_seconds": { "type": "integer", "default": 300 },
+        "destinations": { "type": "array", "items": { "type": "string" } },
+        "enabled": { "type": "boolean", "default": true }
+      },
+      "required": ["name", "metric", "operator", "threshold", "window_seconds"],
+      "additionalProperties": false
+    },
+    "alert_destination": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["webhook", "slack", "email"] },
+        "config": { "type": "object", "additionalProperties": true }
+      },
+      "required": ["id", "type", "config"],
+      "additionalProperties": false
+    },
+    "log_export_config": {
+      "type": "object",
+      "properties": {
+        "destination_type": { "type": "string", "enum": ["s3", "azure_blob", "gcs", "mongodb", "otlp"] },
+        "destination_config": { "type": "object", "additionalProperties": true },
+        "mode": { "type": "string", "enum": ["streaming", "scheduled"] },
+        "stream_interval_seconds": { "type": "integer" },
+        "cron_expression": { "type": "string" },
+        "partition_scheme": { "type": "string" },
+        "record_schema": { "type": "object", "additionalProperties": true },
+        "enabled": { "type": "boolean", "default": true }
+      },
+      "required": ["destination_type", "mode", "destination_config"],
+      "additionalProperties": false
+    },
+    "kms_config": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string", "enum": ["aws_kms", "azure_key_vault", "gcp_kms", "configstore_key"] },
+        "key_ref": { "type": "string" },
+        "auth": { "type": "object", "additionalProperties": true },
+        "dek_cache_ttl_seconds": { "type": "integer", "default": 900, "minimum": 60, "maximum": 3600 },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "entity": { "type": "string", "enum": ["configstore_secrets", "logstore_payloads"] },
+              "enabled": { "type": "boolean" }
+            },
+            "required": ["entity", "enabled"]
+          }
+        }
+      },
+      "required": ["provider", "key_ref", "applies_to"],
+      "additionalProperties": false
+    }
+  }
+}

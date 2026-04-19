@@ -1544,6 +1544,10 @@
     },
     "scim_config": {
       "$ref": "#/$defs/scim_config"
+    },
+    "enterprise": {
+      "$comment": "Enterprise overlay anchor (Constitution Principle XI rule 3). All enterprise fields live in transports/config.schema.enterprise.json and are composed at boot time by lib/schema_loader.go. Default {enabled: false} preserves OSS behavior.",
+      "$ref": "config.schema.enterprise.json"
     }
   },
   "additionalProperties": false,

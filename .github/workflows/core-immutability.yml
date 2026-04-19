@@ -1,0 +1,62 @@
+name: Core Immutability Check
+
+# Constitution Principle I — NON-NEGOTIABLE
+# Asserts that no PR has modified any file under core/**.
+# The baseline ref is the upstream commit prior to the enterprise-parity work.
+# Set CORE_BASELINE_REF as a repository variable to your pre-enterprise tag
+# (e.g. 'v1.5.2'). Default falls back to the merge-base with origin/main.
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-core-unchanged:
+    name: core/** must be untouched
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve baseline ref
+        id: baseline
+        env:
+          CORE_BASELINE_REF: ${{ vars.CORE_BASELINE_REF }}
+        run: |
+          if [ -n "$CORE_BASELINE_REF" ] && git rev-parse --verify "$CORE_BASELINE_REF" >/dev/null 2>&1; then
+            BASELINE="$CORE_BASELINE_REF"
+            SOURCE="repo variable CORE_BASELINE_REF"
+          else
+            git fetch origin main --depth=0 2>/dev/null || true
+            BASELINE=$(git merge-base HEAD origin/main 2>/dev/null || git rev-parse HEAD~1)
+            SOURCE="merge-base with origin/main (fallback)"
+          fi
+          echo "baseline=$BASELINE" >> "$GITHUB_OUTPUT"
+          echo "source=$SOURCE"     >> "$GITHUB_OUTPUT"
+          echo "Using baseline: $BASELINE ($SOURCE)"
+
+      - name: Diff core/**
+        env:
+          BASELINE: ${{ steps.baseline.outputs.baseline }}
+        run: |
+          set -euo pipefail
+          DIFF=$(git diff --stat "$BASELINE"..HEAD -- core/ || true)
+          if [ -n "$DIFF" ]; then
+            echo "::error::Constitution Principle I violation — core/** has been modified vs $BASELINE"
+            echo ""
+            echo "Diff summary:"
+            echo "$DIFF"
+            echo ""
+            echo "All enterprise work must live under plugins/, framework/, transports/bifrost-http/{handlers,lib}, ui/, helm-charts/, terraform/, or docs/enterprise/."
+            echo "If a core change is genuinely required, follow the Constitution escape hatch: write a complexity.md justification, get reviewer sign-off, and document the migration plan for downstream consumers."
+            exit 1
+          fi
+          echo "OK — core/** unchanged versus baseline."
