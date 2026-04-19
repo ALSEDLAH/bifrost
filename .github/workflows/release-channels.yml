@@ -1,0 +1,74 @@
+name: Release Channels (edge / stable)
+
+# Tags releases on two channels from the same commit base.
+# - edge:   continuous (one tag per merge to main)
+# - stable: quarterly (manual dispatch with explicit version)
+#
+# Self-hosted + air-gapped customers pin to `stable`. The vendor's cloud
+# deployment follows `edge`. See docs/enterprise/deployment-modes.mdx.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Stable release version (e.g. v1.6.0)"
+        required: true
+        type: string
+      channel:
+        description: "Channel to tag"
+        required: true
+        type: choice
+        options: [stable]
+
+permissions:
+  contents: write
+
+jobs:
+  edge-tag:
+    name: edge — tag every push to main
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute edge tag
+        id: tag
+        run: |
+          TS=$(date -u +%Y%m%d-%H%M%S)
+          SHA=$(git rev-parse --short HEAD)
+          TAG="edge-${TS}-${SHA}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Push edge tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name  'bifrost-release[bot]'
+          git config user.email 'bifrost-release[bot]@users.noreply.github.com'
+          git tag -a "${{ steps.tag.outputs.tag }}" -m "edge: $(git rev-parse --short HEAD)"
+          git push origin "${{ steps.tag.outputs.tag }}"
+
+  stable-tag:
+    name: stable — manual quarterly tag
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate version
+        run: |
+          if ! [[ "${{ github.event.inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must match v<major>.<minor>.<patch>"
+            exit 1
+          fi
+      - name: Push stable tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name  'bifrost-release[bot]'
+          git config user.email 'bifrost-release[bot]@users.noreply.github.com'
+          git tag -a "${{ github.event.inputs.version }}" -m "stable: ${{ github.event.inputs.version }}"
+          git push origin "${{ github.event.inputs.version }}"

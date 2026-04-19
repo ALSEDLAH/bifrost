@@ -1,0 +1,35 @@
+name: Fork Drift Watcher
+
+# Constitution Principle XI rule 6.
+# Computes the cumulative diff between this fork and upstream/main on the
+# files listed in .github/drift-watchlist.txt. Fails any PR that grows the
+# diff beyond baseline + ceiling unless the HEAD commit message is prefixed
+# with 'drift:' (explicit operator acknowledgment).
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  drift-check:
+    name: Watchlist diff vs upstream/main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        env:
+          UPSTREAM_URL: ${{ vars.UPSTREAM_URL }}
+        run: |
+          REMOTE_URL="${UPSTREAM_URL:-https://github.com/maximhq/bifrost.git}"
+          git remote add upstream "$REMOTE_URL" 2>/dev/null || git remote set-url upstream "$REMOTE_URL"
+          git fetch upstream main
+
+      - name: Run drift check
+        run: bash scripts/drift-check.sh

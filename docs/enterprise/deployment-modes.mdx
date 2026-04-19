@@ -1,0 +1,132 @@
+---
+title: "Deployment Modes"
+description: "Bifrost runs as one binary in three modes: cloud (vendor SaaS), selfhosted (customer on-prem), airgapped (customer on-prem, no outbound)."
+---
+
+# Deployment Modes
+
+Bifrost ships a single binary / container image. Behavior is selected by
+the `deployment.mode` configuration field. Each mode sets opinionated
+defaults across multi-org, telemetry, licensing, metering, billing, SSO
+surface, and update cadence — so operators flip one flag instead of five.
+
+## At a glance
+
+| Concern | `cloud` | `selfhosted` | `airgapped` |
+|---------|:-------:|:------------:|:-----------:|
+| **Multi-org** | enabled | disabled (single org) | disabled |
+| **License plugin** | not loaded | required (signed JWT) | required |
+| **Phone-home telemetry** | on | off by default; opt-in | **forbidden** (enforced) |
+| **Metering (US26)** | enabled | not loaded | not loaded |
+| **Stripe billing (US27–US29)** | enabled | not loaded | not loaded |
+| **SSO** | OIDC + SAML | OIDC + SAML | **OIDC only** |
+| **Feature surface** | Trains A–E (subject to tenant tier) | Trains A–D (subject to license entitlements) | P1 + BYOK subset (FR-037) |
+| **Update cadence** | continuous (vendor) | quarterly stable | quarterly stable (offline) |
+| **Helm profile** | default `values.yaml` | default `values.yaml` | `values-airgapped.yaml` |
+| **Support model** | vendor-owned SLA | support tickets | support tickets |
+
+## Choosing a mode
+
+- **You're operating the vendor cloud** → `cloud`. Multi-tenant SaaS,
+  customers sign up via the billing portal, you handle upgrades.
+- **You're a customer running Bifrost in your own VPC for your team** →
+  `selfhosted`. Single organization, multiple workspaces, license file
+  unlocks the enterprise feature surface you bought.
+- **You're a customer running Bifrost in a network-restricted /
+  classified environment with no outbound connectivity** →
+  `airgapped`. MVP feature subset (orgs, RBAC, audit, OIDC SSO, admin
+  keys, BYOK) — the rest is deferred to later releases as features
+  prove out air-gap-compatible.
+
+## Configuration shape
+
+```json
+{
+  "enterprise": {
+    "enabled": true,
+    "deployment": {
+      "mode": "selfhosted",
+      "multi_org_enabled": false,
+      "telemetry": {
+        "phone_home": false
+      }
+    },
+    "license": {
+      "path": "/etc/bifrost/license.jwt"
+    }
+  }
+}
+```
+
+### Cloud-mode example
+
+```json
+{
+  "enterprise": {
+    "enabled": true,
+    "deployment": {
+      "mode": "cloud",
+      "multi_org_enabled": true,
+      "telemetry": { "phone_home": true }
+    },
+    "billing": {
+      "stripe": {
+        "api_key_env": "STRIPE_SECRET_KEY",
+        "webhook_secret_env": "STRIPE_WEBHOOK_SECRET",
+        "tier_price_ids": {
+          "dev": "price_dev_free",
+          "prod": "price_prod_monthly",
+          "prod_overage": "price_prod_overage",
+          "enterprise": "price_enterprise_custom"
+        }
+      }
+    }
+  }
+}
+```
+
+### Air-gapped example
+
+```json
+{
+  "enterprise": {
+    "enabled": true,
+    "deployment": {
+      "mode": "airgapped",
+      "telemetry": { "phone_home": false }
+    },
+    "license": {
+      "path": "/etc/bifrost/license.jwt"
+    },
+    "sso": {
+      "enabled": true,
+      "provider": "oidc",
+      "issuer_url": "https://idp.internal.example",
+      "client_id": "bifrost",
+      "client_secret": "env.OIDC_CLIENT_SECRET"
+    }
+  }
+}
+```
+
+In airgapped mode, `phone_home: true` is rejected at config-load time —
+the deployment refuses to start with a clear error message. `provider:
+"saml"` is also rejected (FR-037: OIDC only).
+
+## Release channels
+
+| Channel | Cadence | Audience |
+|---------|---------|----------|
+| `edge` | Continuous (per-merge) | The vendor's cloud deployment |
+| `stable` | Quarterly | Self-hosted + air-gapped customers |
+
+`stable` receives critical security patches between feature releases.
+The release pipeline tags both channels from the same commit base.
+Self-hosted operators pin their Helm chart version to a `stable` tag.
+
+## Migration between modes
+
+Switching between `selfhosted` and `airgapped` is a configuration change
+plus a Helm-values swap. Switching from `selfhosted` to `cloud`, or
+vice-versa, is an organization migration (export + import) and is out
+of scope for v1 — it's not a supported in-place transition.

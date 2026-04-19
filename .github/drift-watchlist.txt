@@ -1,0 +1,31 @@
+# Files that constitute the fork's "drift surface" against upstream/main.
+# Constitution Principle XI rule 6 — drift watcher.
+# The drift-check script computes git diff --stat for these paths and fails
+# any PR that grows the cumulative diff > BASELINE + 50 lines unless the
+# commit message starts with `drift:`.
+
+# The 6 plugins extended in-place by enterprise (sibling files only)
+plugins/governance/
+plugins/logging/
+plugins/telemetry/
+plugins/otel/
+plugins/semanticcache/
+plugins/prompts/
+
+# Single hook anchors on upstream files
+transports/bifrost-http/lib/middleware.go
+transports/config.schema.json
+ui/src/routes.tsx
+
+# Top-level files that diverge by necessity
+AGENTS.md
+CLAUDE.md
+README.md
+Makefile
+go.work
+
+# Helm values (overlay pattern: enterprise lives in values-enterprise.yaml)
+helm-charts/bifrost/values.yaml
+
+# PR template — single Constitution checklist append
+.github/pull_request_template.md

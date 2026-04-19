@@ -1,0 +1,7 @@
+{
+  "$comment": "Cumulative line-diff budget for files in .github/drift-watchlist.txt against upstream/main. Reset weekly after each successful upstream-sync merge. Constitution Principle XI rule 6.",
+  "baseline_lines": 0,
+  "ceiling_lines": 50,
+  "last_reset_at": "2026-04-19T00:00:00Z",
+  "last_reset_upstream_sha": "PENDING_FIRST_SYNC"
+}
