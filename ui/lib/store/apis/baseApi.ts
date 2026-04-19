@@ -165,6 +165,9 @@ export const baseApi = createApi({
 		"AccessProfiles",
 		"BusinessUnits",
 		"PromptDeployments",
+		// Enterprise parity — US1 Orgs & Workspaces.
+		"EnterpriseOrganization",
+		"EnterpriseWorkspaces",
 	],
 	endpoints: () => ({}),
 });

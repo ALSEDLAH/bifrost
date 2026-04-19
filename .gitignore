@@ -9,9 +9,12 @@ private.*
 bifrost-data
 test-coverage-local.sh
 
-# Enterprise
-ui/app/enterprise
-ui/components/enterprise
+# Enterprise-parity fork: we track these directories (upstream OSS
+# repo excludes them because enterprise code is delivered privately;
+# our fork owns the enterprise surface). See specs/001-enterprise-parity/
+# and Constitution Principle XI for the fork governance model.
+# ui/app/enterprise          — tracked by this fork
+# ui/components/enterprise   — tracked by this fork (none yet; create as needed)
 
 # Temporary directories
 **/temp/

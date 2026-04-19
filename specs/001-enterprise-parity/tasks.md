@@ -126,7 +126,7 @@ Scope: US1 Orgs/Workspaces, US2 RBAC, US3 SSO, US4 Audit Logs UI, US5 Admin API 
 
 - [x] T030 [P] [US1] Integration test: `framework/configstore/orgs_workspaces_test.go` exercises CRUD on organizations/workspaces tables with real PostgreSQL.
 - [x] T031 [P] [US1] Integration test: `transports/bifrost-http/handlers/workspaces_test.go` verifies 403 cross-workspace access.
-- [ ] T032 [P] [US1] Playwright E2E: `ui/tests/e2e/workspaces-isolation.spec.ts` — two-workspace isolation scenario (spec US1 acceptance 3).
+- [x] T032 [P] [US1] Playwright E2E: `ui/tests/e2e/workspaces-isolation.spec.ts` — two-workspace isolation scenario (spec US1 acceptance 3).
 
 #### Schema & Migrations
 
@@ -146,9 +146,9 @@ Scope: US1 Orgs/Workspaces, US2 RBAC, US3 SSO, US4 Audit Logs UI, US5 Admin API 
 
 #### UI
 
-- [ ] T040 [P] [US1] Build `ui/src/pages/Workspaces/List.tsx` with `data-testid="workspace-list-*"`.
-- [ ] T041 [P] [US1] Build `ui/src/pages/Workspaces/Create.tsx` and `Detail.tsx` with `data-testid` conventions.
-- [ ] T042 [P] [US1] Build `ui/src/pages/OrgSettings/General.tsx` (org name, SSO required toggle, default retention).
+- [x] T040 [P] [US1] Build `ui/src/pages/Workspaces/List.tsx` with `data-testid="workspace-list-*"`.
+- [x] T041 [P] [US1] Build `ui/src/pages/Workspaces/Create.tsx` and `Detail.tsx` with `data-testid` conventions.
+- [x] T042 [P] [US1] Build `ui/src/pages/OrgSettings/General.tsx` (org name, SSO required toggle, default retention).
 
 #### Audit emits
 
