@@ -124,25 +124,25 @@ Scope: US1 Orgs/Workspaces, US2 RBAC, US3 SSO, US4 Audit Logs UI, US5 Admin API 
 
 #### Tests
 
-- [ ] T030 [P] [US1] Integration test: `framework/configstore/orgs_workspaces_test.go` exercises CRUD on organizations/workspaces tables with real PostgreSQL.
-- [ ] T031 [P] [US1] Integration test: `transports/bifrost-http/handlers/workspaces_test.go` verifies 403 cross-workspace access.
+- [x] T030 [P] [US1] Integration test: `framework/configstore/orgs_workspaces_test.go` exercises CRUD on organizations/workspaces tables with real PostgreSQL.
+- [x] T031 [P] [US1] Integration test: `transports/bifrost-http/handlers/workspaces_test.go` verifies 403 cross-workspace access.
 - [ ] T032 [P] [US1] Playwright E2E: `ui/tests/e2e/workspaces-isolation.spec.ts` — two-workspace isolation scenario (spec US1 acceptance 3).
 
 #### Schema & Migrations
 
-- [ ] T033 [US1] Add GORM structs in `framework/configstore/tables-enterprise/`: `TableOrganization` (organization.go), `TableWorkspace` (workspace.go), `TableUser` (user.go), `TableRole` (role.go), `TableUserRoleAssignment` (user_role_assignment.go) per data-model §1. Register migration `E004_orgs_workspaces_users_roles` in `migrations_enterprise.go`.
-- [ ] T034 [US1] Seed migration: insert the synthetic default organization + default workspace rows and back-stamp existing v1.5.2 rows.
+- [x] T033 [US1] Add GORM structs in `framework/configstore/tables-enterprise/`: `TableOrganization` (organization.go), `TableWorkspace` (workspace.go), `TableUser` (user.go), `TableRole` (role.go), `TableUserRoleAssignment` (user_role_assignment.go) per data-model §1. Register migration `E004_orgs_workspaces_users_roles` in `migrations_enterprise.go`.
+- [x] T034 [US1] Seed migration: insert the synthetic default organization + default workspace rows and back-stamp existing v1.5.2 rows.
 
 #### Framework
 
-- [ ] T035 [P] [US1] Add `framework/tenancy/orgs.go` with `CreateOrganization`, `UpdateOrganization`, `GetOrganization` repository functions.
-- [ ] T036 [P] [US1] Add `framework/tenancy/workspaces.go` with CRUD + soft-delete with 30-day grace per spec edge case.
+- [x] T035 [P] [US1] Add `framework/tenancy/orgs.go` with `CreateOrganization`, `UpdateOrganization`, `GetOrganization` repository functions.
+- [x] T036 [P] [US1] Add `framework/tenancy/workspaces.go` with CRUD + soft-delete with 30-day grace per spec edge case.
 
 #### Transports (Admin API)
 
-- [ ] T037 [US1] Implement `transports/bifrost-http/handlers/organizations.go` for the `/v1/admin/organizations/current` endpoint per [admin-api.openapi.yaml](./contracts/admin-api.openapi.yaml).
-- [ ] T038 [US1] Implement `transports/bifrost-http/handlers/workspaces.go` for `/v1/admin/workspaces` list/create/get/patch/delete per contracts.
-- [ ] T039 [US1] Extend `transports/config.schema.json` with `enterprise.orgs_workspaces` block (no required fields).
+- [x] T037 [US1] Implement `transports/bifrost-http/handlers/organizations.go` for the `/v1/admin/organizations/current` endpoint per [admin-api.openapi.yaml](./contracts/admin-api.openapi.yaml).
+- [x] T038 [US1] Implement `transports/bifrost-http/handlers/workspaces.go` for `/v1/admin/workspaces` list/create/get/patch/delete per contracts.
+- [x] T039 [US1] Extend `transports/config.schema.json` with `enterprise.orgs_workspaces` block (no required fields).
 
 #### UI
 
@@ -152,12 +152,12 @@ Scope: US1 Orgs/Workspaces, US2 RBAC, US3 SSO, US4 Audit Logs UI, US5 Admin API 
 
 #### Audit emits
 
-- [ ] T043 [US1] Wire `audit.Emit` calls for `organization.update`, `workspace.create`, `workspace.update`, `workspace.delete` actions.
+- [x] T043 [US1] Wire `audit.Emit` calls for `organization.update`, `workspace.create`, `workspace.update`, `workspace.delete` actions.
 
 #### Docs & Changelog
 
-- [ ] T044 [P] [US1] Author `docs/enterprise/organizations-workspaces.mdx`.
-- [ ] T045 [P] [US1] Add changelog entries in `framework/changelog.md`, `transports/changelog.md` per Principle IX core→framework→plugins→transport hierarchy.
+- [x] T044 [P] [US1] Author `docs/enterprise/organizations-workspaces.mdx`.
+- [x] T045 [P] [US1] Add changelog entries in `framework/changelog.md`, `transports/changelog.md` per Principle IX core→framework→plugins→transport hierarchy.
 
 **Checkpoint (US1)**: Workspaces can be created, scoped, and isolation is E2E-verified.
 

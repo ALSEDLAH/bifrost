@@ -34,7 +34,8 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE001SeedDefaultOrg(ctx),
 		migrationE002CreateTenancySidecars(ctx),
 		// E003 is in framework/logstore/migrations_enterprise.go (logstore-side).
-		// E004..E024 land in subsequent tasks.
+		migrationE004OrgsWorkspacesUsersRoles(ctx),
+		// E005..E024 land in subsequent tasks.
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -42,6 +43,172 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		return fmt.Errorf("enterprise configstore migrations failed: %w", err)
 	}
 	return nil
+}
+
+// builtInRoles is the canonical scope list for the four built-in roles
+// seeded at boot. The scope_bitmask field is left at 0 in v1; T049
+// populates it once the scope-index registry is declared. ScopeJSON is
+// the authoritative source until then.
+var builtInRoles = []struct {
+	Name      string
+	IsBuiltin bool
+	ScopeJSON string
+}{
+	// Owner: full access including billing and organization delete.
+	{Name: "Owner", IsBuiltin: true, ScopeJSON: `{
+		"*": ["read","write","delete"]
+	}`},
+	// Admin: org-wide operational control minus billing + org delete.
+	{Name: "Admin", IsBuiltin: true, ScopeJSON: `{
+		"metrics": ["read","write","delete"],
+		"completions": ["read","write"],
+		"prompts": ["read","write","delete"],
+		"configs": ["read","write","delete"],
+		"guardrails": ["read","write","delete"],
+		"integrations": ["read","write","delete"],
+		"providers": ["read","write","delete"],
+		"models": ["read","write","delete"],
+		"team_mgmt": ["read","write"],
+		"virtual_keys": ["read","write","delete"],
+		"admin_api_keys": ["read","write","delete"],
+		"service_accounts": ["read","write","delete"],
+		"audit_logs": ["read"],
+		"workspaces": ["read","write"]
+	}`},
+	// Member: read access to most things + write on prompts/configs.
+	{Name: "Member", IsBuiltin: true, ScopeJSON: `{
+		"metrics": ["read"],
+		"completions": ["read","write"],
+		"prompts": ["read","write"],
+		"configs": ["read","write"],
+		"guardrails": ["read"],
+		"virtual_keys": ["read"],
+		"audit_logs": ["read"]
+	}`},
+	// Manager: workspace-level admin (US2 per-workspace role).
+	{Name: "Manager", IsBuiltin: true, ScopeJSON: `{
+		"metrics": ["read","write"],
+		"completions": ["read","write"],
+		"prompts": ["read","write","delete"],
+		"configs": ["read","write","delete"],
+		"guardrails": ["read","write"],
+		"virtual_keys": ["read","write","delete"],
+		"team_mgmt": ["read","write"]
+	}`},
+}
+
+// migrationE004OrgsWorkspacesUsersRoles creates the 5 Train A tenancy
+// tables and seeds the default organization, default workspace, and
+// four built-in roles pointing at the synthetic UUIDs persisted by
+// E001 in ent_system_defaults.
+//
+// Single-org-mode deployments see exactly:
+//   - 1 row in ent_organizations (is_default=true)
+//   - 1 row in ent_workspaces (slug="default")
+//   - 4 rows in ent_roles (Owner, Admin, Member, Manager)
+//   - 0 rows in ent_users (users land via SSO first-login or manual
+//     invite through the UI/admin-API)
+//
+// Idempotent: gormigrate's tracking table dedupes; seed INSERTs guard
+// against duplicates via "WHERE NOT EXISTS".
+func migrationE004OrgsWorkspacesUsersRoles(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E004_orgs_workspaces_users_roles",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+
+			// 1. Create the 5 tables.
+			if err := tx.AutoMigrate(
+				&tables_enterprise.TableOrganization{},
+				&tables_enterprise.TableWorkspace{},
+				&tables_enterprise.TableUser{},
+				&tables_enterprise.TableRole{},
+				&tables_enterprise.TableUserRoleAssignment{},
+			); err != nil {
+				return fmt.Errorf("auto-migrate orgs/workspaces/users/roles: %w", err)
+			}
+
+			// 2. Resolve the synthetic UUIDs from E001.
+			var sd tables_enterprise.TableSystemDefaults
+			if err := tx.Where("id = ?", tables_enterprise.SystemDefaultsRowID).First(&sd).Error; err != nil {
+				return fmt.Errorf("read system_defaults (E001 must run first): %w", err)
+			}
+
+			now := time.Now().UTC()
+
+			// 3. Seed the default organization.
+			defaultOrg := tables_enterprise.TableOrganization{
+				ID:                   sd.DefaultOrganizationID,
+				Name:                 "Default",
+				IsDefault:            true,
+				SSORequired:          false,
+				BreakGlassEnabled:    false,
+				DefaultRetentionDays: 90,
+				DataResidencyRegion:  "us-east-1",
+				CreatedAt:            now,
+				UpdatedAt:            now,
+			}
+			var existingOrg tables_enterprise.TableOrganization
+			if err := tx.Where("id = ?", defaultOrg.ID).First(&existingOrg).Error; err != nil {
+				if err := tx.Create(&defaultOrg).Error; err != nil {
+					return fmt.Errorf("seed default org: %w", err)
+				}
+			}
+
+			// 4. Seed the default workspace inside the default org.
+			defaultWS := tables_enterprise.TableWorkspace{
+				ID:             sd.DefaultWorkspaceID,
+				OrganizationID: sd.DefaultOrganizationID,
+				Name:           "Default",
+				Slug:           "default",
+				Description:    "Default workspace for single-org deployments.",
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			}
+			var existingWS tables_enterprise.TableWorkspace
+			if err := tx.Where("id = ?", defaultWS.ID).First(&existingWS).Error; err != nil {
+				if err := tx.Create(&defaultWS).Error; err != nil {
+					return fmt.Errorf("seed default workspace: %w", err)
+				}
+			}
+
+			// 5. Seed the four built-in roles in the default org.
+			for _, r := range builtInRoles {
+				var existing tables_enterprise.TableRole
+				err := tx.Where("organization_id = ? AND name = ?", sd.DefaultOrganizationID, r.Name).First(&existing).Error
+				if err == nil {
+					continue // already seeded
+				}
+				role := tables_enterprise.TableRole{
+					ID:             uuid.NewString(),
+					OrganizationID: sd.DefaultOrganizationID,
+					Name:           r.Name,
+					ScopeJSON:      r.ScopeJSON,
+					IsBuiltin:      r.IsBuiltin,
+					CreatedAt:      now,
+				}
+				if err := tx.Create(&role).Error; err != nil {
+					return fmt.Errorf("seed built-in role %s: %w", r.Name, err)
+				}
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			for _, t := range []any{
+				&tables_enterprise.TableUserRoleAssignment{},
+				&tables_enterprise.TableRole{},
+				&tables_enterprise.TableUser{},
+				&tables_enterprise.TableWorkspace{},
+				&tables_enterprise.TableOrganization{},
+			} {
+				if err := tx.Migrator().DropTable(t); err != nil {
+					return fmt.Errorf("drop orgs/workspaces table: %w", err)
+				}
+			}
+			return nil
+		},
+	}
 }
 
 // migrationE002CreateTenancySidecars creates the 5 sidecar tables that

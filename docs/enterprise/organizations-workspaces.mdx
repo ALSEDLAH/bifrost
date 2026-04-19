@@ -1,0 +1,190 @@
+---
+title: "Organizations & Workspaces"
+description: "Multi-tenant isolation primitive. Every enterprise feature (RBAC, audit, budgets, guardrails, log retention, BYOK) scopes against organizations and workspaces."
+---
+
+# Organizations & Workspaces
+
+Bifrost's enterprise multi-tenancy uses a two-level hierarchy:
+
+- **Organization** — top-level tenant boundary. Owns SSO configuration,
+  SCIM integration, org-wide guardrails, billing (in cloud mode),
+  default retention, BYOK configuration.
+- **Workspace** — sub-organization isolation boundary. Owns virtual
+  keys, prompts, declarative configs, model catalog, workspace-scoped
+  guardrails, log views, analytics scope.
+
+Every tenant-scoped resource carries `organization_id` and (where
+applicable) `workspace_id`. Cross-org reads are blocked at the
+framework's repository layer — a cross-workspace lookup returns 404 as
+if the resource didn't exist, never leaks the existence of the other
+tenant's data.
+
+## Deployment-mode behavior
+
+| Mode | Orgs | Workspaces |
+|------|------|------------|
+| `cloud` | many (one per customer) | many per org |
+| `selfhosted` | 1 (default) | unlimited per org |
+| `airgapped` | 1 (default) | unlimited per org |
+
+v1 selfhosted/airgapped deployments host exactly one organization —
+seeded at first boot with `name="Default"` and `is_default=true`.
+Multi-org mode activates via `enterprise.deployment.multi_org_enabled`
+in a future release; the schema is already ready (every tenant-scoped
+table carries `organization_id` from day 1, so no migration is needed
+to activate — Clarification Q2).
+
+## Schema
+
+All enterprise tables use the prefix `ent_` to visually separate them
+from upstream Bifrost tables in database tooling:
+
+- `ent_organizations` — the organizations themselves.
+- `ent_workspaces` — (foreign key to `ent_organizations.id`).
+- `ent_users` — SSO-linked accounts + optional break-glass locals.
+- `ent_roles` — built-in Owner/Admin/Member/Manager plus custom roles.
+- `ent_user_role_assignments` — many-to-many between users and roles,
+  optionally scoped to a specific workspace.
+
+Upstream governance tables (`governance_virtual_keys`,
+`governance_teams`, `governance_customers`, etc.) inherit tenancy via
+1:1 sidecar tables (`ent_virtual_key_tenancy`, etc.) so the upstream
+schema is never modified (Constitution Principle XI rule 1).
+
+## Admin API
+
+### Get current organization
+
+```http
+GET /v1/admin/organizations/current
+Authorization: Bearer bf-admin-…
+```
+
+Returns the caller's resolved organization.
+
+```json
+{
+  "id": "01HYZ…",
+  "name": "Default",
+  "is_default": true,
+  "sso_required": false,
+  "break_glass_enabled": false,
+  "default_retention_days": 90,
+  "data_residency_region": "us-east-1",
+  "multi_org_enabled": false
+}
+```
+
+### Update organization settings
+
+```http
+PATCH /v1/admin/organizations/current
+Authorization: Bearer bf-admin-…
+Content-Type: application/json
+
+{
+  "sso_required": true,
+  "default_retention_days": 30
+}
+```
+
+Requires the `team_mgmt:write` scope. Emits a `organization.update`
+audit entry with before/after snapshots.
+
+### List workspaces
+
+```http
+GET /v1/admin/workspaces
+Authorization: Bearer bf-admin-…
+```
+
+Returns workspaces scoped to the caller's organization. Requires
+`workspaces:read`.
+
+### Create workspace
+
+```http
+POST /v1/admin/workspaces
+Content-Type: application/json
+
+{
+  "name": "Product Team",
+  "slug": "product",
+  "description": "Product engineering team"
+}
+```
+
+Requires `workspaces:write`. Returns the created workspace with its
+generated UUID. Slug is case-insensitive and must be unique within the
+organization; conflicts return HTTP 409.
+
+### Patch workspace
+
+```http
+PATCH /v1/admin/workspaces/{id}
+Content-Type: application/json
+
+{
+  "log_retention_days": 30,
+  "payload_encryption_enabled": true
+}
+```
+
+Requires `workspaces:write`. `payload_encryption_enabled` toggles the
+BYOK-encrypted logstore payload mode (requires an active `kms_config`
+— see [BYOK docs](./byok.mdx)).
+
+### Delete workspace (soft-delete with 30-day grace)
+
+```http
+DELETE /v1/admin/workspaces/{id}
+```
+
+Requires `workspaces:delete`. Marks the workspace `deleted_at` but
+does NOT immediately hard-delete. Within the 30-day grace window an
+administrator can restore via `POST /v1/admin/workspaces/{id}/restore`
+(not yet implemented — manual DB clear of `deleted_at` works today).
+After 30 days the retention job hard-deletes all associated rows.
+
+Virtual keys bound to the workspace are revoked immediately on
+soft-delete; incoming requests using them return HTTP 401.
+
+## Role assignments
+
+Every role is org-scoped (visible only within its organization) and
+assignments may be either org-wide or workspace-scoped:
+
+- **Org-wide**: `user_role_assignments.workspace_id = NULL` — the
+  user holds the role across every workspace in the org.
+- **Workspace-scoped**: `workspace_id = <ws>` — the user holds the
+  role only inside that workspace.
+
+## Isolation guarantee
+
+A user assigned to workspace A cannot see, list, or modify any
+resource belonging to workspace B — even when the resources share the
+same organization. This guarantee is enforced by:
+
+1. **Framework layer** — `tenancy.ScopedDB(bctx, db, workspaceScoped)`
+   pre-filters every query by `organization_id` + `workspace_id`.
+2. **Handler layer** — handlers resolve `TenantContext` from the
+   BifrostContext and pass `OrganizationID` / `WorkspaceID` to the
+   repository.
+3. **CI test** — `framework/tenancy/tenancy_test.go` and
+   `framework/tenancy/orgs_workspaces_test.go` validate the guarantee
+   against real PostgreSQL on every PR.
+
+## Audit
+
+Every organization and workspace action emits an audit entry. Canonical
+actions:
+
+- `organization.update`
+- `workspace.create`
+- `workspace.update`
+- `workspace.delete`
+
+Entries include actor, IP, before/after snapshots (JSON), request ID,
+and ISO 8601 timestamp. Visible in the Audit Logs UI (see
+[audit-logs](./audit-logs.mdx)).
