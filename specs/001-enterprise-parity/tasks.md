@@ -85,28 +85,28 @@ description: "Task list for Bifrost Enterprise Parity feature implementation"
 
 ### 2.3 Tenancy migration for existing tables
 
-- [ ] T017 Add sidecar GORM structs in `framework/configstore/tables-enterprise/`: `TableVirtualKeyTenancy`, `TableTeamTenancy`, `TableCustomerTenancy`, `TableProviderTenancy`, `TableProviderKeyTenancy` (one file per struct). Each is a 1:1 sidecar with `<entity>_id` PK + `organization_id` + `workspace_id` indexed fields. Register migration `E002_create_tenancy_sidecars` in `framework/configstore/migrations_enterprise.go` that creates the sidecar tables AND backfills one row per existing upstream row pointing at the synthetic default org/workspace (research R-03, data-model §9).
-- [ ] T018 Add `framework/logstore/tables_enterprise.go` containing `TableLogTenancy` sidecar struct + register migration `E003_create_log_tenancy_sidecar` in new `framework/logstore/migrations_enterprise.go` that creates the sidecar and backfills existing log rows.
-- [ ] T019 Add `RegisterEnterpriseMigrations(db *gorm.DB)` entry-point in each of `framework/configstore/migrations_enterprise.go` and `framework/logstore/migrations_enterprise.go`. Idempotency is provided by the existing `framework/migrator` package's tracking-table behavior — re-runs are no-ops (research R-11). The enterprise plugin's `Init()` calls these once at boot.
-- [ ] T020 Integration test: `framework/configstore/migrations_enterprise_test.go` seeds a v1.5.2 fixture (existing virtual_keys / teams / customers rows without tenancy), runs `RegisterEnterpriseMigrations` then re-runs it, asserts idempotency, asserts every fixture row has a sidecar pointing at the default org, asserts no upstream rows were modified.
+- [x] T017 Add sidecar GORM structs in `framework/configstore/tables-enterprise/`: `TableVirtualKeyTenancy`, `TableTeamTenancy`, `TableCustomerTenancy`, `TableProviderTenancy`, `TableProviderKeyTenancy` (one file per struct). Each is a 1:1 sidecar with `<entity>_id` PK + `organization_id` + `workspace_id` indexed fields. Register migration `E002_create_tenancy_sidecars` in `framework/configstore/migrations_enterprise.go` that creates the sidecar tables AND backfills one row per existing upstream row pointing at the synthetic default org/workspace (research R-03, data-model §9).
+- [x] T018 Add `framework/logstore/tables_enterprise.go` containing `TableLogTenancy` sidecar struct + register migration `E003_create_log_tenancy_sidecar` in new `framework/logstore/migrations_enterprise.go` that creates the sidecar and backfills existing log rows.
+- [x] T019 Add `RegisterEnterpriseMigrations(db *gorm.DB)` entry-point in each of `framework/configstore/migrations_enterprise.go` and `framework/logstore/migrations_enterprise.go`. Idempotency is provided by the existing `framework/migrator` package's tracking-table behavior — re-runs are no-ops (research R-11). The enterprise plugin's `Init()` calls these once at boot.
+- [x] T020 Integration test: `framework/configstore/migrations_enterprise_test.go` seeds a v1.5.2 fixture (existing virtual_keys / teams / customers rows without tenancy), runs `RegisterEnterpriseMigrations` then re-runs it, asserts idempotency, asserts every fixture row has a sidecar pointing at the default org, asserts no upstream rows were modified.
 
 ### 2.4 Audit sink plugin
 
-- [ ] T021 Scaffold `plugins/audit/` with `go.mod`, `main.go` implementing `ObservabilityPlugin.Inject()` that writes `audit_entries` rows (research data-model §7).
-- [ ] T022 [P] Add `plugins/audit/emit.go` exposing `audit.Emit(ctx, entry)` helper consumed by all other enterprise plugins.
-- [ ] T023 [P] Add Playwright-invisible unit test for the Emit helper's serialization in `plugins/audit/emit_test.go`.
+- [x] T021 Scaffold `plugins/audit/` with `go.mod`, `main.go` implementing `ObservabilityPlugin.Inject()` that writes `audit_entries` rows (research data-model §7).
+- [x] T022 [P] Add `plugins/audit/emit.go` exposing `audit.Emit(ctx, entry)` helper consumed by all other enterprise plugins.
+- [x] T023 [P] Add Playwright-invisible unit test for the Emit helper's serialization in `plugins/audit/emit_test.go`.
 
 ### 2.5 Enterprise-gate plugin (tenant resolution)
 
-- [ ] T024 Scaffold `plugins/enterprise-gate/` with `go.mod`; implement `HTTPTransportPreHook` that resolves tenant per R-02 resolution order and writes `BifrostContext` keys.
-- [ ] T025 [P] Add `plugins/enterprise-gate/features.go` registering the enterprise-feature manifest read by the obs-completeness CI job (research R-09).
-- [ ] T026 [P] Unit test: `plugins/enterprise-gate/main_test.go` validates resolution-order determinism for all 4 auth-token types.
-- [ ] T027 Integration test: `plugins/enterprise-gate/integration_test.go` sends requests with each auth type against a test HTTP server and asserts `BifrostContext` keys.
+- [x] T024 Scaffold `plugins/enterprise-gate/` with `go.mod`; implement `HTTPTransportPreHook` that resolves tenant per R-02 resolution order and writes `BifrostContext` keys.
+- [x] T025 [P] Add `plugins/enterprise-gate/features.go` registering the enterprise-feature manifest read by the obs-completeness CI job (research R-09).
+- [x] T026 [P] Unit test: `plugins/enterprise-gate/main_test.go` validates resolution-order determinism for all 4 auth-token types.
+- [x] T027 Integration test: `plugins/enterprise-gate/integration_test.go` sends requests with each auth type against a test HTTP server and asserts `BifrostContext` keys.
 
 ### 2.6 Tenancy middleware in transports
 
-- [ ] T028 Extend `transports/bifrost-http/lib/middleware.go` with `TenantResolveMiddleware` and `RBACEnforceMiddleware` that consume `BifrostContext` keys and short-circuit with 401/403 when unresolved / scope-insufficient.
-- [ ] T029 [P] Contract test: `transports/bifrost-http/lib/middleware_test.go` verifies 401 on missing auth, 403 on missing scope, happy path on valid admin API key.
+- [x] T028 Extend `transports/bifrost-http/lib/middleware.go` with `TenantResolveMiddleware` and `RBACEnforceMiddleware` that consume `BifrostContext` keys and short-circuit with 401/403 when unresolved / scope-insufficient.
+- [x] T029 [P] Contract test: `transports/bifrost-http/lib/middleware_test.go` verifies 401 on missing auth, 403 on missing scope, happy path on valid admin API key.
 
 **Checkpoint**: Tenancy, encryption, audit sink, enterprise-gate, and middleware are operational. All 23 user-story phases below can begin in parallel (subject to their own intra-story ordering).
 
