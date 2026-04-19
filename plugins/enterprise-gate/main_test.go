@@ -154,7 +154,7 @@ func TestSplitKeyPrefix(t *testing.T) {
 		{"bf-admin-AbCdEfGhIjKl", "bf-admin-AbCdEfGh"},
 		{"bf-svc-ServiceAcct1234", "bf-svc-ServiceA"},
 		{"sk-bf-XXYYZZWW1122", "sk-bf-XXYYZZWW"},
-		{"bf-admin-short", ""},     // suffix too short
+		{"bf-admin-short", ""},      // suffix too short
 		{"unknown-prefix-xxxx", ""}, // unknown prefix
 	}
 	for _, tt := range tests {

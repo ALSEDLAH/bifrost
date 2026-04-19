@@ -126,9 +126,9 @@ func TestEnterpriseMigrations_E001_E002(t *testing.T) {
 	// Sidecar counts must match upstream counts.
 	type rowCount struct{ Count int64 }
 	checks := []struct {
-		name      string
-		sidecar   string
-		expected  int64
+		name     string
+		sidecar  string
+		expected int64
 	}{
 		{"vk", "ent_virtual_key_tenancy", 3},
 		{"team", "ent_team_tenancy", 2},

@@ -85,11 +85,11 @@ func migrationE002CreateTenancySidecars(ctx context.Context) *migrator.Migration
 			//    Use raw SQL with INSERT ... SELECT WHERE NOT EXISTS so we
 			//    don't depend on dialect-specific ON CONFLICT semantics.
 			backfills := []struct {
-				name      string
-				upstream  string // upstream table name
-				sidecar   string // sidecar table name
-				fkColumn  string // sidecar FK column (== sidecar PK)
-				wsScoped  bool   // whether to set workspace_id
+				name     string
+				upstream string // upstream table name
+				sidecar  string // sidecar table name
+				fkColumn string // sidecar FK column (== sidecar PK)
+				wsScoped bool   // whether to set workspace_id
 			}{
 				{"virtual_keys", "governance_virtual_keys", "ent_virtual_key_tenancy", "virtual_key_id", true},
 				{"teams", "governance_teams", "ent_team_tenancy", "team_id", true},

@@ -37,14 +37,14 @@ const (
 // Operators may override individual fields via explicit config; mode is
 // the seed.
 type Defaults struct {
-	MultiOrgEnabled       bool
-	PhoneHomeEnabled      bool
-	PhoneHomePermitted    bool // false = ANY phone-home setting is rejected at validation time
-	LicenseRequired       bool
-	MeteringEnabled       bool
-	BillingEnabled        bool
-	SAMLPermitted         bool // false in airgapped (OIDC only)
-	AirGapped             bool
+	MultiOrgEnabled    bool
+	PhoneHomeEnabled   bool
+	PhoneHomePermitted bool // false = ANY phone-home setting is rejected at validation time
+	LicenseRequired    bool
+	MeteringEnabled    bool
+	BillingEnabled     bool
+	SAMLPermitted      bool // false in airgapped (OIDC only)
+	AirGapped          bool
 }
 
 var (

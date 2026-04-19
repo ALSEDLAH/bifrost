@@ -7,11 +7,11 @@
 //
 // Resolution order (research R-02):
 //
-//	1. Authorization: Bearer bf-admin-…  -> Admin API key  (org scope)
-//	2. Authorization: Bearer bf-svc-…    -> Service-account key (workspace scope)
-//	3. Cookie: bifrost_session=…         -> User session (user + org + workspace)
-//	4. x-api-key: sk-bf-…                -> Virtual key   (workspace scope)
-//	5. fall-through                      -> Default (synthetic single-org)
+//  1. Authorization: Bearer bf-admin-…  -> Admin API key  (org scope)
+//  2. Authorization: Bearer bf-svc-…    -> Service-account key (workspace scope)
+//  3. Cookie: bifrost_session=…         -> User session (user + org + workspace)
+//  4. x-api-key: sk-bf-…                -> Virtual key   (workspace scope)
+//  5. fall-through                      -> Default (synthetic single-org)
 //
 // On resolution, the plugin sets BifrostContext keys defined in
 // framework/tenancy/keys.go. Downstream plugins (audit, license,
@@ -167,9 +167,9 @@ func (p *Plugin) HTTPTransportPreHook(bctx *schemas.BifrostContext, req *schemas
 		return &schemas.HTTPResponse{
 			StatusCode: 401,
 			Headers: map[string]string{
-				"content-type":             "application/json",
-				"x-bifrost-deny-reason":    err.Error(),
-				"x-bifrost-resolved-via":   "none",
+				"content-type":           "application/json",
+				"x-bifrost-deny-reason":  err.Error(),
+				"x-bifrost-resolved-via": "none",
 			},
 			Body: []byte(`{"error":{"type":"authentication_error","message":"` + jsonEscape(err.Error()) + `"}}`),
 		}, nil

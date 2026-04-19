@@ -55,12 +55,12 @@ type Diff struct {
 // these are expected to vary across replays and do not constitute behavior
 // regressions.
 var nonDeterministicHeaders = map[string]struct{}{
-	"date":             {},
-	"x-request-id":     {},
+	"date":                 {},
+	"x-request-id":         {},
 	"x-bifrost-request-id": {},
-	"x-trace-id":       {},
+	"x-trace-id":           {},
 	"x-bifrost-latency-ms": {},
-	"server":           {},
+	"server":               {},
 }
 
 // LoadCorpus reads the captured request/response pairs from corpus/ and

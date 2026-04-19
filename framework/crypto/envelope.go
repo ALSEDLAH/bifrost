@@ -41,11 +41,11 @@ const MinEnvelopeSize = 1 + 32 + 1 + 12 + 16
 // EnvelopeHeader holds the parsed header of an envelope ciphertext, used
 // by the KMS layer to look up the correct KEK and unwrap the DEK.
 type EnvelopeHeader struct {
-	Version       byte
-	KEKRefHash    [32]byte
-	DEKWrapped    []byte
-	Nonce         [12]byte
-	Ciphertext    []byte // includes the GCM auth tag
+	Version    byte
+	KEKRefHash [32]byte
+	DEKWrapped []byte
+	Nonce      [12]byte
+	Ciphertext []byte // includes the GCM auth tag
 }
 
 // HashKEKRef returns SHA-256(kek_ref). kek_ref is the AWS ARN, Azure

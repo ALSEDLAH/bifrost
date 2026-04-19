@@ -77,7 +77,7 @@ func Init(_ context.Context) (LicensePlugin, error) {
 	return &noopLicense{startedAt: time.Now().UTC()}, nil
 }
 
-func (n *noopLicense) Name() string                  { return PluginName }
+func (n *noopLicense) Name() string                   { return PluginName }
 func (n *noopLicense) IsEntitled(feature string) bool { return true }
 func (n *noopLicense) DaysUntilExpiry() int           { return 365 }
 func (n *noopLicense) InGracePeriod() bool            { return false }
