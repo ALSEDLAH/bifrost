@@ -31,6 +31,7 @@ type Plugin struct {
 
 	mu    sync.RWMutex
 	rules []ruleEntry
+	emit  auditEmitter // nil → use default audit.Emit
 }
 
 // Init constructs the plugin and loads the initial rule set.
@@ -80,4 +81,19 @@ func (p *Plugin) RuleCount() int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return len(p.rules)
+}
+
+// Invalidate re-runs Reload with a background context. Intended for
+// the guardrails admin handlers: every successful rule / provider
+// CRUD mutation calls this so edits take effect immediately (spec 016
+// FR-007). Swallows reload errors (logged) — a transient DB blip
+// shouldn't fail the admin API response; the next periodic reload
+// (if wired) will recover.
+func (p *Plugin) Invalidate() {
+	if p == nil {
+		return
+	}
+	if err := p.Reload(context.Background()); err != nil && p.logger != nil {
+		p.logger.Warn(fmt.Sprintf("guardrails-runtime: invalidate reload: %v", err))
+	}
 }

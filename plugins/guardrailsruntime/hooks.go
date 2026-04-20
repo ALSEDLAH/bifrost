@@ -68,14 +68,16 @@ func (p *Plugin) PreLLMHook(
 		}
 		switch r.action {
 		case ActionBlock:
+			p.emitAudit(ctx, r, "input", "block", fmt.Sprintf("input matched rule %q", r.name))
 			return req, blockShortCircuit(r), nil
 		case ActionFlag:
+			p.emitAudit(ctx, r, "input", "flag", fmt.Sprintf("input matched rule %q (non-blocking)", r.name))
 			flags = append(flags, GuardrailFlag{
 				RuleID: r.id, RuleName: r.name,
 				Trigger: "input", MatchedAt: time.Now().UTC(),
 			})
 		case ActionLog:
-			// audit only — wired in Phase 3.
+			p.emitAudit(ctx, r, "input", "log", fmt.Sprintf("input matched rule %q (log-only)", r.name))
 			if p.logger != nil {
 				p.logger.Info(fmt.Sprintf("guardrails-runtime: rule %s matched on input (log-only)", r.name))
 			}
@@ -133,6 +135,7 @@ func (p *Plugin) PostLLMHook(
 		}
 		switch r.action {
 		case ActionBlock:
+			p.emitAudit(ctx, r, "output", "block", fmt.Sprintf("output matched rule %q", r.name))
 			status := http.StatusUnavailableForLegalReasons
 			msg := fmt.Sprintf("guardrail blocked output: %s", r.name)
 			return nil, &schemas.BifrostError{
@@ -143,11 +146,13 @@ func (p *Plugin) PostLLMHook(
 				},
 			}, nil
 		case ActionFlag:
+			p.emitAudit(ctx, r, "output", "flag", fmt.Sprintf("output matched rule %q (non-blocking)", r.name))
 			flags = append(flags, GuardrailFlag{
 				RuleID: r.id, RuleName: r.name,
 				Trigger: "output", MatchedAt: time.Now().UTC(),
 			})
 		case ActionLog:
+			p.emitAudit(ctx, r, "output", "log", fmt.Sprintf("output matched rule %q (log-only)", r.name))
 			if p.logger != nil {
 				p.logger.Info(fmt.Sprintf("guardrails-runtime: rule %s matched on output (log-only)", r.name))
 			}

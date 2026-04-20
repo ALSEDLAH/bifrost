@@ -15,12 +15,24 @@ import (
 )
 
 type GuardrailsHandler struct {
-	store  configstore.ConfigStore
-	logger schemas.Logger
+	store       configstore.ConfigStore
+	invalidator func() // optional — called after successful CRUD mutations (spec 016 FR-007)
+	logger      schemas.Logger
 }
 
 func NewGuardrailsHandler(store configstore.ConfigStore, logger schemas.Logger) *GuardrailsHandler {
 	return &GuardrailsHandler{store: store, logger: logger}
+}
+
+// SetInvalidator installs a callback invoked after every successful
+// rule / provider CRUD mutation. The guardrails runtime plugin wires
+// its Invalidate() here at server startup so edits propagate without
+// waiting for a periodic reload.
+func (h *GuardrailsHandler) SetInvalidator(fn func()) {
+	if h == nil {
+		return
+	}
+	h.invalidator = fn
 }
 
 func (h *GuardrailsHandler) RegisterRoutes(r *router.Router, middlewares ...schemas.BifrostHTTPMiddleware) {
@@ -90,6 +102,9 @@ func (h *GuardrailsHandler) createProvider(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
 	}
+	if h.invalidator != nil {
+		h.invalidator()
+	}
 	SendJSONWithStatus(ctx, p, fasthttp.StatusCreated)
 }
 
@@ -122,6 +137,9 @@ func (h *GuardrailsHandler) updateProvider(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
 	}
+	if h.invalidator != nil {
+		h.invalidator()
+	}
 	SendJSON(ctx, existing)
 }
 
@@ -139,6 +157,9 @@ func (h *GuardrailsHandler) deleteProvider(ctx *fasthttp.RequestCtx) {
 	if err := h.store.DeleteGuardrailProvider(ctx, id); err != nil {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
+	}
+	if h.invalidator != nil {
+		h.invalidator()
 	}
 	ctx.SetStatusCode(fasthttp.StatusNoContent)
 }
@@ -203,6 +224,9 @@ func (h *GuardrailsHandler) createRule(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
 	}
+	if h.invalidator != nil {
+		h.invalidator()
+	}
 	SendJSONWithStatus(ctx, r, fasthttp.StatusCreated)
 }
 
@@ -252,6 +276,9 @@ func (h *GuardrailsHandler) updateRule(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
 	}
+	if h.invalidator != nil {
+		h.invalidator()
+	}
 	SendJSON(ctx, existing)
 }
 
@@ -260,6 +287,9 @@ func (h *GuardrailsHandler) deleteRule(ctx *fasthttp.RequestCtx) {
 	if err := h.store.DeleteGuardrailRule(ctx, id); err != nil {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
+	}
+	if h.invalidator != nil {
+		h.invalidator()
 	}
 	ctx.SetStatusCode(fasthttp.StatusNoContent)
 }
