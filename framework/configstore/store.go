@@ -398,6 +398,13 @@ type ConfigStore interface {
 	UpdateAlertChannel(ctx context.Context, channel *tables_enterprise.TableAlertChannel) error
 	DeleteAlertChannel(ctx context.Context, id string) error
 
+	// MCP Tool Groups (enterprise — spec 005)
+	ListMCPToolGroups(ctx context.Context) ([]tables_enterprise.TableMCPToolGroup, error)
+	GetMCPToolGroupByID(ctx context.Context, id string) (*tables_enterprise.TableMCPToolGroup, error)
+	CreateMCPToolGroup(ctx context.Context, group *tables_enterprise.TableMCPToolGroup) error
+	UpdateMCPToolGroup(ctx context.Context, group *tables_enterprise.TableMCPToolGroup) error
+	DeleteMCPToolGroup(ctx context.Context, id string) error
+
 	// DB returns the underlying database connection.
 	DB() *gorm.DB
 

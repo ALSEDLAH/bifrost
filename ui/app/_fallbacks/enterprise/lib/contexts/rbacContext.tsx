@@ -27,6 +27,7 @@ export enum RbacResource {
 	PromptDeploymentStrategy = "PromptDeploymentStrategy",
 	AccessProfiles = "AccessProfiles",
 	AlertChannels = "AlertChannels",
+	MCPToolGroups = "MCPToolGroups",
 }
 
 // RBAC Operation Names (must match backend definitions)

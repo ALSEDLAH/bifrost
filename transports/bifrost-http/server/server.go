@@ -1159,6 +1159,9 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	alertDispatcher := alertchannels.New(logger)
 	alertChannelsHandler := handlers.NewAlertChannelsHandler(s.Config.ConfigStore, alertDispatcher, logger)
 	alertChannelsHandler.RegisterRoutes(s.Router, middlewares...)
+	// MCP Tool Groups CRUD (spec 005).
+	mcpToolGroupsHandler := handlers.NewMCPToolGroupsHandler(s.Config.ConfigStore, logger)
+	mcpToolGroupsHandler.RegisterRoutes(s.Router, middlewares...)
 	if gp, ok := governancePlugin.(*governance.GovernancePlugin); ok && gp != nil {
 		gp.SetBudgetThresholdAlertDispatcher(alertDispatcher, func() []tables_enterprise.TableAlertChannel {
 			list, err := s.Config.ConfigStore.ListAlertChannels(context.Background())

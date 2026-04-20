@@ -29,6 +29,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		// E003 is in framework/logstore/migrations_enterprise.go (logstore-side).
 		migrationE004UsersAndRoles(ctx),
 		migrationE005AlertChannels(ctx),
+		migrationE006MCPToolGroups(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -70,7 +71,8 @@ var builtInRoles = []struct {
 		"PromptRepository": ["Read","View","Create","Update","Delete"],
 		"PromptDeploymentStrategy": ["Read","View","Create","Update"],
 		"AccessProfiles": ["Read","View","Create","Update","Delete"],
-		"AlertChannels": ["Read","View","Create","Update","Delete"]
+		"AlertChannels": ["Read","View","Create","Update","Delete"],
+		"MCPToolGroups": ["Read","View","Create","Update","Delete"]
 	}`},
 	// Member: read/view most things, write on prompts/configs.
 	{Name: "Member", IsBuiltin: true, ScopeJSON: `{
@@ -220,6 +222,25 @@ func migrationE005AlertChannels(ctx context.Context) *migrator.Migration {
 		Rollback: func(tx *gorm.DB) error {
 			tx = tx.WithContext(ctx)
 			return tx.Migrator().DropTable(&tables_enterprise.TableAlertChannel{})
+		},
+	}
+}
+
+// migrationE006MCPToolGroups creates the ent_mcp_tool_groups table used
+// by the MCP tool-groups admin UI (spec 005).
+func migrationE006MCPToolGroups(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E006_mcp_tool_groups",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TableMCPToolGroup{}); err != nil {
+				return fmt.Errorf("auto-migrate mcp_tool_groups: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TableMCPToolGroup{})
 		},
 	}
 }

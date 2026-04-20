@@ -33,6 +33,7 @@ var Resources = []string{
 	"PromptDeploymentStrategy",
 	"AccessProfiles",
 	"AlertChannels",
+	"MCPToolGroups",
 }
 
 // Operations enumerates the 6 RBAC operations matching the frontend enum.
