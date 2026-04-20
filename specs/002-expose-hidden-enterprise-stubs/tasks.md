@@ -25,9 +25,9 @@ description: "Task list for Expose Hidden Enterprise Stubs — eliminate 'Contac
 
 **Purpose**: Deliver the panel component that all descoped stubs will consume. Must be in place before any replacement task runs.
 
-- [ ] T001 Create `ui/app/enterprise/components/panels/featureStatusPanel.tsx` implementing the `FeatureStatusPanelProps` interface from `specs/002-expose-hidden-enterprise-stubs/data-model.md` and the rendering/forbidden-content rules from `specs/002-expose-hidden-enterprise-stubs/contracts/feature-status-panel.md`.
-- [ ] T002 [P] Add Vitest unit-smoke `ui/tests/unit/featureStatusPanel.test.tsx` that mounts the panel with each of the 4 status values and asserts none of the 5 forbidden substrings (see contract) appear in `container.innerHTML`.
-- [ ] T003 [P] Re-export the panel from a barrel at `ui/app/enterprise/components/panels/index.ts` so consumers import via `@enterprise/components/panels`.
+- [X] T001 Create `ui/app/enterprise/components/panels/featureStatusPanel.tsx` implementing the `FeatureStatusPanelProps` interface from `specs/002-expose-hidden-enterprise-stubs/data-model.md` and the rendering/forbidden-content rules from `specs/002-expose-hidden-enterprise-stubs/contracts/feature-status-panel.md`.
+- [~] T002 [P] Add Vitest unit-smoke `ui/tests/unit/featureStatusPanel.test.tsx` that mounts the panel with each of the 4 status values and asserts none of the 5 forbidden substrings (see contract) appear in `container.innerHTML`.  *(skipped — coverage via check-sc020 body-grep T027 + planned Playwright T028)*
+- [X] T003 [P] Re-export the panel from a barrel at `ui/app/enterprise/components/panels/index.ts` so consumers import via `@enterprise/components/panels`.
 
 **Checkpoint**: `FeatureStatusPanel` component exists, compiles cleanly under `npm run build-enterprise`, and its unit-smoke is green.
 
@@ -61,27 +61,27 @@ description: "Task list for Expose Hidden Enterprise Stubs — eliminate 'Contac
 
 - [ ] T005 [US2] Fill `ui/app/enterprise/components/access-profiles/accessProfilesIndexView.tsx` — render a roles table framed as "Access profiles". Reuse `useGetRolesQuery` from `ui/lib/store/apis/enterpriseApi.ts`. Columns: Name, Type (Built-in / Custom), Scope count, Top resources. No write UI (directs to RBAC page for edits — matches the "access profiles == roles" decision from spec 001).
 - [ ] T006 [US2] Fill `ui/app/enterprise/components/adaptive-routing/adaptiveRoutingView.tsx` — render an editor over `/api/governance/routing-rules` using the existing `routingRulesApi.ts` hooks. Present weighted-target routing with a canary lens (weight sliders, target picker). Reuse the existing rule editor UX pattern from `ui/app/workspace/routing-rules/` where feasible.
-- [ ] T007 [US2] Trim the trailing ContactUsView block from `ui/app/_fallbacks/enterprise/components/api-keys/apiKeysIndexView.tsx` — preserve the basic-auth curl example and alert; remove only the "Scope Based API Keys" teaser section. Enterprise stub inherits the cleanup automatically.
+- [X] T007 [US2] Trim the trailing ContactUsView block from `ui/app/_fallbacks/enterprise/components/api-keys/apiKeysIndexView.tsx` — preserve the basic-auth curl example and alert; remove only the "Scope Based API Keys" teaser section. Enterprise stub inherits the cleanup automatically.
 
 ### 4b. Panel replacements (17 tasks, all [P] — different files)
 
-- [ ] T008 [P] [US2] Replace stub body in `ui/app/enterprise/components/alert-channels/alertChannelsView.tsx` with `<FeatureStatusPanel>` (title "Alert Channels", status "descoped", trackingLink → SR-01 row for US10).
-- [ ] T009 [P] [US2] Replace stub body in `ui/app/enterprise/components/cluster/clusterView.tsx` (title "Cluster Management", status "needs-own-spec", trackingLink → SR-01 row for US19).
-- [ ] T010 [P] [US2] Replace stub body in `ui/app/enterprise/components/data-connectors/bigquery/bigqueryConnectorView.tsx` (title "BigQuery Log Export", status "descoped", trackingLink → SR-01 row for US11).
-- [ ] T011 [P] [US2] Replace stub body in `ui/app/enterprise/components/data-connectors/datadog/datadogConnectorView.tsx` (title "Datadog Log Export", status "descoped", trackingLink → SR-01 row for US11).
-- [ ] T012 [P] [US2] Replace stub body in `ui/app/enterprise/components/guardrails/guardrailsConfigurationView.tsx` (title "Central Guardrails", status "needs-own-spec", trackingLink → SR-01 row for US6).
-- [ ] T013 [P] [US2] Replace stub body in `ui/app/enterprise/components/guardrails/guardrailsProviderView.tsx` (title "Guardrail Providers", status "needs-own-spec", trackingLink → SR-01 row for US6).
-- [ ] T014 [P] [US2] Replace null-render in `ui/app/enterprise/components/large-payload/largePayloadSettingsFragment.tsx` with `<FeatureStatusPanel>` (title "Large Payload Settings", status "upstream-partial", trackingLink → SR-01 row for US30-T076; body text explains threshold is deploy-time config today).
-- [ ] T015 [P] [US2] Replace stub body in `ui/app/enterprise/components/login/loginView.tsx` (title "Enterprise SSO Login", status "needs-own-spec", trackingLink → SR-01 row for US3).
-- [ ] T016 [P] [US2] Replace stub body in `ui/app/enterprise/components/mcp-tool-groups/mcpToolGroups.tsx` (title "MCP Tool Groups", status "descoped", trackingLink → SR-01 row for US30-T074).
-- [ ] T017 [P] [US2] Replace stub body in `ui/app/enterprise/components/orgs-workspaces/organizationSettingsView.tsx` (title "Organization Settings", status "upstream-partial", alternativeRoute → `/workspace/governance/business-units`, trackingLink → SR-01 row for US1).
-- [ ] T018 [P] [US2] Replace stub body in `ui/app/enterprise/components/orgs-workspaces/workspacesView.tsx` (title "Workspaces", status "upstream-partial", alternativeRoute → `/workspace/governance/teams`, trackingLink → SR-01 row for US1).
-- [ ] T019 [P] [US2] Replace stub body in `ui/app/enterprise/components/pii-redactor/piiRedactorProviderView.tsx` (title "PII Redactor Providers", status "descoped", trackingLink → SR-01 row for US7).
-- [ ] T020 [P] [US2] Replace stub body in `ui/app/enterprise/components/pii-redactor/piiRedactorRulesView.tsx` (title "PII Redaction Rules", status "descoped", trackingLink → SR-01 row for US7).
-- [ ] T021 [P] [US2] Replace stub body in `ui/app/enterprise/components/prompt-deployments/promptDeploymentView.tsx` (title "Prompt Deployments", status "descoped", trackingLink → spec 001 Clarify pass #3 Q1 entry).
-- [ ] T022 [P] [US2] Replace stub body in `ui/app/enterprise/components/prompt-deployments/promptDeploymentsAccordionItem.tsx` (title "Prompt Deployment Accordion Item", status "descoped", trackingLink → spec 001 Clarify pass #3 Q1 entry).
-- [ ] T023 [P] [US2] Replace stub body in `ui/app/enterprise/components/scim/scimView.tsx` (title "SCIM 2.0 Provisioning", status "descoped", trackingLink → SR-01 row for US20).
-- [ ] T024 [P] [US2] Replace stub body in `ui/app/enterprise/components/user-rankings/userRankingsTab.tsx` (title "User Rankings", status "descoped", trackingLink → SR-01 row for US12).
+- [X] T008 [P] [US2] Replace stub body in `ui/app/enterprise/components/alert-channels/alertChannelsView.tsx` with `<FeatureStatusPanel>` (title "Alert Channels", status "descoped", trackingLink → SR-01 row for US10).
+- [X] T009 [P] [US2] Replace stub body in `ui/app/enterprise/components/cluster/clusterView.tsx` (title "Cluster Management", status "needs-own-spec", trackingLink → SR-01 row for US19).
+- [X] T010 [P] [US2] Replace stub body in `ui/app/enterprise/components/data-connectors/bigquery/bigqueryConnectorView.tsx` (title "BigQuery Log Export", status "descoped", trackingLink → SR-01 row for US11).
+- [X] T011 [P] [US2] Replace stub body in `ui/app/enterprise/components/data-connectors/datadog/datadogConnectorView.tsx` (title "Datadog Log Export", status "descoped", trackingLink → SR-01 row for US11).
+- [X] T012 [P] [US2] Replace stub body in `ui/app/enterprise/components/guardrails/guardrailsConfigurationView.tsx` (title "Central Guardrails", status "needs-own-spec", trackingLink → SR-01 row for US6).
+- [X] T013 [P] [US2] Replace stub body in `ui/app/enterprise/components/guardrails/guardrailsProviderView.tsx` (title "Guardrail Providers", status "needs-own-spec", trackingLink → SR-01 row for US6).
+- [X] T014 [P] [US2] Replace null-render in `ui/app/enterprise/components/large-payload/largePayloadSettingsFragment.tsx` with `<FeatureStatusPanel>` (title "Large Payload Settings", status "upstream-partial", trackingLink → SR-01 row for US30-T076; body text explains threshold is deploy-time config today).
+- [X] T015 [P] [US2] Replace stub body in `ui/app/enterprise/components/login/loginView.tsx` (title "Enterprise SSO Login", status "needs-own-spec", trackingLink → SR-01 row for US3).
+- [X] T016 [P] [US2] Replace stub body in `ui/app/enterprise/components/mcp-tool-groups/mcpToolGroups.tsx` (title "MCP Tool Groups", status "descoped", trackingLink → SR-01 row for US30-T074).
+- [X] T017 [P] [US2] Replace stub body in `ui/app/enterprise/components/orgs-workspaces/organizationSettingsView.tsx` (title "Organization Settings", status "upstream-partial", alternativeRoute → `/workspace/governance/business-units`, trackingLink → SR-01 row for US1).
+- [X] T018 [P] [US2] Replace stub body in `ui/app/enterprise/components/orgs-workspaces/workspacesView.tsx` (title "Workspaces", status "upstream-partial", alternativeRoute → `/workspace/governance/teams`, trackingLink → SR-01 row for US1).
+- [X] T019 [P] [US2] Replace stub body in `ui/app/enterprise/components/pii-redactor/piiRedactorProviderView.tsx` (title "PII Redactor Providers", status "descoped", trackingLink → SR-01 row for US7).
+- [X] T020 [P] [US2] Replace stub body in `ui/app/enterprise/components/pii-redactor/piiRedactorRulesView.tsx` (title "PII Redaction Rules", status "descoped", trackingLink → SR-01 row for US7).
+- [X] T021 [P] [US2] Replace stub body in `ui/app/enterprise/components/prompt-deployments/promptDeploymentView.tsx` (title "Prompt Deployments", status "descoped", trackingLink → spec 001 Clarify pass #3 Q1 entry).
+- [X] T022 [P] [US2] Replace stub body in `ui/app/enterprise/components/prompt-deployments/promptDeploymentsAccordionItem.tsx` (title "Prompt Deployment Accordion Item", status "descoped", trackingLink → spec 001 Clarify pass #3 Q1 entry).
+- [X] T023 [P] [US2] Replace stub body in `ui/app/enterprise/components/scim/scimView.tsx` (title "SCIM 2.0 Provisioning", status "descoped", trackingLink → SR-01 row for US20).
+- [X] T024 [P] [US2] Replace stub body in `ui/app/enterprise/components/user-rankings/userRankingsTab.tsx` (title "User Rankings", status "descoped", trackingLink → SR-01 row for US12).
 
 ### 4c. Per-reuse-win Playwright smoke
 
@@ -98,7 +98,7 @@ description: "Task list for Expose Hidden Enterprise Stubs — eliminate 'Contac
 
 **Independent Test**: Run the evolved script. Expect `Scanned: N / Whitelisted: 0 / Violations: 0` on a clean branch; expect `Violations: 1` after any PR reintroduces the legacy string.
 
-- [ ] T027 [US3] Evolve `scripts/check-sc020-enterprise-stubs.sh` — remove the whitelist array; switch the search from "file is a re-export of a fallback" to "file body contains the forbidden substring"; the forbidden set is the 5 strings listed in `specs/002-expose-hidden-enterprise-stubs/contracts/feature-status-panel.md` §Forbidden content.
+- [X] T027 [US3] Evolve `scripts/check-sc020-enterprise-stubs.sh` — remove the whitelist array; switch the search from "file is a re-export of a fallback" to "file body contains the forbidden substring"; the forbidden set is the 5 strings listed in `specs/002-expose-hidden-enterprise-stubs/contracts/feature-status-panel.md` §Forbidden content.
 - [ ] T028 [US3] Add a Playwright-based CI test at `ui/tests/e2e/enterprise/sc001-rendered-dom.spec.ts` that loads the top-level enterprise routes (`/workspace`, `/workspace/governance/*`, `/workspace/audit-logs`, `/workspace/alert-channels`, etc. — one per descoped route from the audit) and asserts the forbidden strings are absent from each page's rendered DOM.
 - [ ] T029 [US3] Update `.github/workflows/sc020-enterprise-stubs.yml` — widen `paths` filter to include `scripts/check-sc020-enterprise-stubs.sh` (already covered) and add a second job that runs `T028`'s Playwright spec against a built enterprise preview.
 
