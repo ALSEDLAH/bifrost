@@ -1,7 +1,21 @@
 # Data Model — Bifrost Enterprise Parity (Phase 1)
 
-**Branch**: `001-enterprise-parity` | **Date**: 2026-04-19
+**Branch**: `001-enterprise-parity` | **Date**: 2026-04-19 | **Revised**: 2026-04-19
 **Plan**: [plan.md](./plan.md) | **Research**: [research.md](./research.md)
+
+> **⚠ REVISION (2026-04-19 clarification session):**
+> - `ent_organizations` **DROPPED** — use upstream `governance_customers` directly
+> - `ent_workspaces` **DROPPED** — use upstream `governance_teams` directly
+> - `ent_virtual_key_tenancy` and other sidecar tables **DROPPED** — upstream
+>   tables already have CustomerID/TeamID FKs which provide org/workspace scoping
+> - Enterprise-gate plugin **REMOVED** — governance plugin's VK→Team→Customer
+>   resolution IS the tenant resolution
+> - Enterprise columns (SSO, retention, residency) **DEFERRED** — will be added
+>   to upstream tables only when specific features require them; Team.Profile/
+>   Claims/Config JSON fields are the extension point
+> - Remaining enterprise-only tables: `ent_users`, `ent_roles`,
+>   `ent_user_role_assignments`, `ent_system_defaults`, `ent_audit_entries`,
+>   `ent_admin_api_keys` (and future feature-specific tables)
 
 All new tables live in existing framework stores:
 

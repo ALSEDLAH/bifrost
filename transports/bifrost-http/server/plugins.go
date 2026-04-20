@@ -163,8 +163,8 @@ func (s *BifrostHTTPServer) loadBuiltinPlugins(ctx context.Context) error {
 	}
 	s.Config.SetPluginOrderInfo(telemetry.PluginName, builtinPlacement, schemas.Ptr(1))
 
-	// 2. Prompts (requires config store for prompt repository; disabled in enterprise)
-	if s.Config.ConfigStore != nil && ctx.Value(schemas.BifrostContextKeyIsEnterprise) == nil {
+	// 2. Prompts (requires config store for prompt repository)
+	if s.Config.ConfigStore != nil {
 		s.registerPluginWithStatus(ctx, prompts.PluginName, nil, nil, false)
 	} else {
 		s.markPluginDisabled(prompts.PluginName)
@@ -183,8 +183,8 @@ func (s *BifrostHTTPServer) loadBuiltinPlugins(ctx context.Context) error {
 	}
 	s.Config.SetPluginOrderInfo(logging.PluginName, builtinPlacement, schemas.Ptr(3))
 
-	// 4. Governance (if enabled and not enterprise)
-	if ctx.Value(schemas.BifrostContextKeyIsEnterprise) == nil {
+	// 4. Governance (always enabled — handles budgets, rate-limits, routing, VK enforcement)
+	{
 		config := &governance.Config{
 			IsVkMandatory:         &s.Config.ClientConfig.EnforceAuthOnInference,
 			RequiredHeaders:       &s.Config.ClientConfig.RequiredHeaders,
@@ -192,8 +192,6 @@ func (s *BifrostHTTPServer) loadBuiltinPlugins(ctx context.Context) error {
 			RoutingChainMaxDepth:  &s.Config.ClientConfig.RoutingChainMaxDepth,
 		}
 		s.registerPluginWithStatus(ctx, governance.PluginName, nil, config, false)
-	} else {
-		s.markPluginDisabled(governance.PluginName)
 	}
 	s.Config.SetPluginOrderInfo(governance.PluginName, builtinPlacement, schemas.Ptr(4))
 

@@ -168,6 +168,8 @@ export const baseApi = createApi({
 		// Enterprise parity — US1 Orgs & Workspaces.
 		"EnterpriseOrganization",
 		"EnterpriseWorkspaces",
+		// Enterprise parity — US2 RBAC.
+		"EnterpriseRoles",
 	],
 	endpoints: () => ({}),
 });

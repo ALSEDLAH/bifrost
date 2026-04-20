@@ -1,70 +1,35 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 1.1.0
-Bump rationale: MINOR — added Principle XI (Upstream-Mergeability) to
-                govern how we add enterprise code so it survives upstream
-                merges from maximhq/bifrost without destabilizing conflicts.
-                Additive only; no existing principle redefined.
+Version change: 1.1.0 → 1.2.0
+Bump rationale: MINOR — added 4 new principles (XII-XV) for code quality,
+                testing standards, UX consistency, and performance.
+                Additive only; no existing principle modified or removed.
 
 Modified principles: (none)
 
 Added principles:
-  XI. Upstream-Mergeability (NEW)
+  XII.  Code Quality Standards (NEW)
+  XIII. Testing Discipline (NEW)
+  XIV.  UX Consistency (NEW)
+  XV.   Performance Budget (NEW)
 
 Added sections: (none)
 Removed sections: (none)
 
 Templates requiring updates:
 - .specify/templates/plan-template.md  ✅ updated — Constitution Check
-  gate now has an XI row.
+  table now has XII-XV rows.
 
 ------------------------------------------------------------------------
 Previous history preserved below:
 ------------------------------------------------------------------------
 
+Version change: 1.0.0 → 1.1.0
+Bump rationale: MINOR — added Principle XI (Upstream-Mergeability).
+
 Version change: (uninitialized template) → 1.0.0
-Bump rationale: Initial ratification of Bifrost Enterprise Parity Constitution.
-
-Added principles (10):
-  I.    Core Immutability (NON-NEGOTIABLE)
-  II.   Non-Breaking by Default
-  III.  Plugin-First Architecture
-  IV.   Config-Driven Gating
-  V.    Multi-Tenancy First
-  VI.   Observability Mandatory
-  VII.  Security by Default
-  VIII. Test Coverage Required
-  IX.   Documentation & Schema Sync
-  X.    Dependency Hierarchy Respected
-
-Added sections:
-- Additional Constraints (security, compliance, performance)
-- Development Workflow & Quality Gates
-- Governance (amendment + versioning + compliance review)
-
-Removed sections: none
-
-Templates requiring updates:
-- .specify/templates/plan-template.md  ⚠ pending — "Constitution Check" gate
-  must be populated with checks derived from Principles I–X (core-diff check,
-  schema-additive check, observability completeness, tenancy scoping, docs/
-  changelog presence). Left as an explicit TODO below because rewriting the
-  plan template belongs to /speckit-plan's template customization phase, not
-  constitution authoring.
-- .specify/templates/spec-template.md   ✅ compatible — no structural change
-  required; user-story + FR + SC layout is consistent with Principles.
-- .specify/templates/tasks-template.md  ✅ compatible — existing phase layout
-  accommodates Principle VIII (test coverage) and IX (docs) as additional
-  phases when /speckit-tasks generates real tasks.
-- .claude/skills/speckit-*/SKILL.md     ✅ no edits required — these are the
-  upstream skill definitions; principle compliance is enforced at artifact
-  level (plan.md, tasks.md), not inside skill templates.
-
-Follow-up TODOs:
-- TODO(plan-template): When running /speckit-plan for the first feature,
-  expand the "Constitution Check" section to enumerate concrete gates
-  derived from this document (see Governance §Compliance Review).
+Bump rationale: Initial ratification (Principles I-X).
 -->
 
 # Bifrost Constitution
@@ -396,6 +361,110 @@ include a plan to drop the patch once upstream merges or rejects.
 weekly merge flow, conflict-resolution playbook, and CI drift-
 watcher configuration.
 
+### XII. Code Quality Standards
+
+All Go code MUST pass `gofmt`, `go vet`, and `golangci-lint` with the
+project's `.golangci.yml` configuration before merge. All TypeScript
+code MUST pass `tsc --noEmit` and the project's ESLint configuration.
+
+- Functions exceeding 80 lines MUST be split or justified in PR review.
+- Exported functions and types MUST have GoDoc comments. Unexported
+  helpers need comments only when the intent is non-obvious.
+- Magic numbers and hardcoded strings MUST be extracted to named
+  constants.
+- Error messages MUST include enough context to diagnose without
+  reading source (resource type, ID, operation attempted).
+- No `//nolint` directives without an adjacent comment explaining why
+  the lint rule does not apply.
+- UI components MUST use the project's existing design system
+  (`@/components/ui/*`) — no raw HTML elements for interactive
+  controls.
+
+**Rationale**: Consistent code quality reduces review friction, makes
+the codebase navigable by new contributors, and prevents style debates
+from consuming review cycles.
+
+### XIII. Testing Discipline
+
+Beyond Principle VIII's coverage requirements, testing MUST follow
+these standards:
+
+- **Unit tests**: Every exported function with branching logic has at
+  least one happy-path and one error-path test.
+- **Integration tests**: Run against real PostgreSQL (configstore +
+  logstore) via `make test-enterprise`. Mocks are prohibited for
+  database interactions.
+- **E2E tests**: Every new UI page or dialog has a Playwright test
+  under `ui/tests/e2e/` using `data-testid` attributes. Tests MUST
+  cover the golden path and at least one error state.
+- **Test isolation**: Each test MUST set up and tear down its own
+  data. Tests MUST NOT depend on execution order or shared state
+  from other tests.
+- **Flaky test policy**: A test that fails intermittently is
+  immediately quarantined (skipped with `t.Skip("flaky: <issue>")`),
+  investigated within 48 hours, and either fixed or deleted.
+
+**Rationale**: Untested code is unshippable code. Flaky tests erode
+CI trust and cause engineers to ignore real failures.
+
+### XIV. UX Consistency
+
+Every enterprise UI page MUST follow existing Bifrost design patterns:
+
+- **Layout**: Use the existing workspace layout
+  (`ui/app/workspace/*/layout.tsx` + `page.tsx` pattern) with
+  TanStack Router file-based routing.
+- **Components**: Use the project's Radix UI + Tailwind design system
+  (`@/components/ui/*`). No new UI libraries without explicit
+  justification.
+- **Data fetching**: Use RTK Query (`ui/lib/store/apis/*.ts`) with
+  proper cache tag invalidation. No raw `fetch()` calls from
+  components.
+- **Enterprise stubs**: Replace `ContactUsView` fallbacks by
+  implementing real components at
+  `ui/app/enterprise/components/<feature>/<view>.tsx`. The file MUST
+  export a default function component.
+- **data-testid convention**: All interactive elements carry
+  `data-testid="<entity>-<element>-<qualifier>"` for Playwright.
+- **Loading/error/empty states**: Every data-fetching view MUST
+  handle loading (skeleton or spinner), error (message with retry),
+  and empty (helpful prompt to create first item) states.
+- **Toast notifications**: Use `sonner` for success/error feedback.
+  No `alert()` or `console.log()` for user-facing messages.
+- **RBAC gating**: Pages MUST check `useRbac(resource, operation)`
+  and render `NoPermissionView` when access is denied.
+
+**Rationale**: Inconsistent UI erodes user trust. Enterprise buyers
+evaluate polish during procurement demos — a single broken or
+unstyled page can stall a deal.
+
+### XV. Performance Budget
+
+Every feature operates within a strict performance budget:
+
+- **Hot-path overhead**: Enterprise plugins MUST NOT add more than
+  1ms p50 / 3ms p99 to request latency at 5k RPS (SC-005). Measured
+  by `make perf` benchmark suite.
+- **Cold-start**: Server boot time MUST NOT exceed 15 seconds with
+  all enterprise plugins enabled (including migration checks).
+- **UI page load**: Enterprise pages MUST render first meaningful
+  paint within 2 seconds on a standard connection. Use code-splitting
+  (`autoCodeSplitting: true` in TanStack Router config).
+- **Database queries**: No N+1 queries. List endpoints MUST use
+  single queries with JOINs or preloads. Audit log queries over 10M
+  rows MUST return first page within 2 seconds (SC-011).
+- **Memory**: Plugins MUST NOT hold unbounded in-memory state. Caches
+  MUST have TTL or size bounds. Streaming responses MUST NOT buffer
+  the full body.
+- **Async by default**: Non-critical operations (audit writes,
+  metric emissions, export flushes) MUST run asynchronously via
+  channels or background workers. The request path MUST NOT block
+  on observability.
+
+**Rationale**: Performance regressions are silent — they accumulate
+until a customer reports latency spikes. Explicit budgets make them
+visible before merge.
+
 ## Additional Constraints
 
 **Performance**: New plugins MUST NOT add more than 1ms p50 overhead to the
@@ -471,7 +540,7 @@ unless the other is a superseding constitutional amendment.
 
 **Compliance review**: On every `/speckit-analyze` invocation, the
 analysis cross-checks `spec.md`, `plan.md`, and `tasks.md` against each
-of Principles I–X and flags gaps. Unresolved flags block
+of Principles I–XV and flags gaps. Unresolved flags block
 `/speckit-implement`.
 
 **Runtime guidance**: For day-to-day development conventions
@@ -481,4 +550,4 @@ catalogue), engineers consult [AGENTS.md](../../AGENTS.md). This
 constitution governs *what* must be true; AGENTS.md governs *how* to
 write code such that it stays true.
 
-**Version**: 1.1.0 | **Ratified**: 2026-04-19 | **Last Amended**: 2026-04-19
+**Version**: 1.2.0 | **Ratified**: 2026-04-19 | **Last Amended**: 2026-04-19
