@@ -2,6 +2,20 @@
 
 ## [Unreleased] — enterprise-parity branch
 
+### Added (US2 — Granular RBAC, T020–T022 + T032/T033, 2026-04-20)
+
+- `framework/tenancy/scopes.go` + `roles.go` back the new RBAC HTTP
+  handler (`transports/bifrost-http/handlers/rbac.go`). 24 resources ×
+  6 operations; 4 built-in roles (Owner / Admin / Manager / Member)
+  seeded by the existing `migrationE004UsersAndRoles`.
+
+### Descoped 2026-04-20 (per SR-01 reuse-over-new)
+
+- `tables-enterprise/admin_api_key.go` + `migrationE005AdminAPIKeys`
+  removed — upstream `auth_config` basic-auth already provides admin
+  auth. Any `ent_admin_api_keys` table left in existing deployments
+  from pre-revert images is harmless (orphan, no handler reads it).
+
 ### Added (US1 — Organizations & Workspaces, T033–T036)
 
 - `framework/tenancy/orgs.go` — `OrgRepo` with `GetDefault`, `GetByID`,

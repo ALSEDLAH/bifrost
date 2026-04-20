@@ -1604,12 +1604,17 @@ available, and a confirmation email is sent.
 - **SC-019**: Customer self-service tier upgrade (Dev → Prod)
   completes in <5 minutes end-to-end (click Upgrade → Stripe
   checkout → confirmation email → tier features active).
-- **SC-020**: Zero ContactUsView stubs remain in the enterprise
-  build. Every route under `ui/app/workspace/` that imports from
-  `@enterprise/components/` renders a functional implementation —
-  not a marketing placeholder. Validated by a CI check that greps
-  the built JS bundle for "This feature is a part of the Bifrost
-  enterprise license" and fails if found.
+- **SC-020** (revised 2026-04-20 per SR-01): Zero ContactUsView stubs
+  remain for user stories classified **IN SCOPE** by SR-01 (US1, US2,
+  US4, US8, US12, US13, US14, US30 — the expose-existing set).
+  Descoped user stories (see SR-01 out-of-scope column) retain their
+  ContactUsView fallback by design — the teaser is the honest
+  representation of "not-yet-built, pending its own feature spec".
+  Validated by a CI check that greps the built JS bundle for "This
+  feature is a part of the Bifrost enterprise license" **at file
+  paths corresponding to in-scope stubs only**; out-of-scope paths
+  are whitelisted. A later feature spec that moves a story from
+  out-of-scope → in-scope MUST also remove its whitelist entry.
 
 ## Assumptions
 
