@@ -1072,6 +1072,10 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 		if err != nil {
 			return fmt.Errorf("failed to initialize governance handler: %v", err)
 		}
+		// Enterprise US8 (T055) — wire WebSocket broadcaster for budget threshold alerts.
+		if gp, ok := governancePlugin.(*governance.GovernancePlugin); ok && s.WebSocketHandler != nil {
+			gp.SetBudgetThresholdBroadcaster(s.WebSocketHandler.BroadcastEvent)
+		}
 	}
 	var cacheHandler *handlers.CacheHandler
 	semanticCachePlugin, _ := lib.FindPluginAs[*semanticcache.Plugin](s.Config, semanticcache.PluginName)
