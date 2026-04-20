@@ -1,6 +1,7 @@
-// Auto-generated enterprise stub: re-exports the OSS fallback.
-// Overwrite with a real implementation when the corresponding enterprise
-// feature ships. (Fork governance: keeps the vite alias happy when
-// ui/app/enterprise/ exists — every @enterprise path must resolve.)
+// Enterprise stub: re-exports the OSS fallback.
+//
+// Access profiles have no upstream backend to surface — the concept was
+// only a ContactUsView teaser. Descoped 2026-04-20 (reuse-over-new rule).
+
 export { default } from "../../../_fallbacks/enterprise/components/access-profiles/accessProfilesIndexView";
 export * from "../../../_fallbacks/enterprise/components/access-profiles/accessProfilesIndexView";

@@ -1,6 +1,9 @@
-// Auto-generated enterprise stub: re-exports the OSS fallback.
-// Overwrite with a real implementation when the corresponding enterprise
-// feature ships. (Fork governance: keeps the vite alias happy when
-// ui/app/enterprise/ exists — every @enterprise path must resolve.)
+// Enterprise stub: re-exports the OSS fallback.
+//
+// The fallback surfaces the upstream admin credential (basic auth via
+// `auth_config`) — that IS the existing admin auth path. No parallel
+// multi-key system is built here; an enterprise-only scoped admin-key
+// system was explicitly descoped 2026-04-20.
+
 export { default } from "../../../_fallbacks/enterprise/components/api-keys/apiKeysIndexView";
 export * from "../../../_fallbacks/enterprise/components/api-keys/apiKeysIndexView";

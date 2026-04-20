@@ -18,9 +18,64 @@
 - Q: What is the commercial gating model for self-hosted enterprise features? → A: License-key-gated with hard expiry. A signed license file (offline-verifiable, no network call required) encodes the customer identity, issued-at + expires-at timestamps, and a per-feature entitlement list. Enterprise features consult a license plugin via context key; on expiry the deployment enters a 14-day grace period with a prominent UI banner and daily audit entries, after which enterprise features disable gracefully (revert to OSS-only behavior) while leaving existing data accessible read-only. OSS core features are never license-gated. Cloud mode does not require a customer license file (the vendor operates that deployment).
 - Q: Is cloud-tier billing/metering in scope for this feature, or deferred to a separate track? → A: In scope — expanded into this spec as a new Train E "Cloud Commercial" (US26–US29). Train E activates only in `deployment.mode: cloud` and covers per-organization usage metering, Stripe-based subscription + usage billing, a customer-facing billing portal, and tier/plan management (Dev/Prod/Enterprise). Train E is strictly additive: self-hosted and air-gapped modes do not load the metering, Stripe, or billing-portal plugins at all (per Principle IV).
 - Q: Who/what issues self-hosted license files? → A: A dedicated CLI tool `tools/license-authority/` that vendor ops runs locally. Inputs (customer name, entitlement list, expiry, seat/workspace/VK limits, contact email); outputs a signed JWT file. Vendor's Ed25519 private key is held in a password-manager vault, loaded into the CLI only at issuance time, never committed to the repo. v1 is manual issuance triggered by sales handoff; v2 may auto-issue on Stripe webhook for cloud→self-hosted hybrid customers. The CLI is NOT a separate service and does not run in production.
+- Q: US8 scope — upstream governance plugin already ships full budget/rate-limit enforcement. What should US8 become? → A: Drop US8 implementation tasks (T126-T139). Reduce to single task: add budget-threshold-alert emission (50%/75%/90%) to existing governance tracker. FR-020, FR-021, FR-023 marked ALREADY_SHIPPED.
+- Q: Governance + prompts plugins are disabled in enterprise mode. Enterprise-gate runs a parallel tenant resolution. What should change? → A: (1) Re-enable governance AND prompts plugins in enterprise mode — they must coexist. (2) Remove enterprise-gate plugin entirely — it is redundant. Governance plugin already resolves VK → Team (workspace) → Customer (organization), which IS the tenant resolution. Enterprise auth (admin-api-keys, service-account-keys, SSO sessions) should be added as extensions to the existing auth middleware, not as a separate plugin. Enterprise migrations (E001-E004) move to a framework-level migration runner invoked at server startup.
+- Q: Should there be a top-level success criterion for 100% enterprise surface coverage? → A: Yes. Added SC-020: "Zero ContactUsView stubs remain in the enterprise build." CI check validates no "enterprise license" placeholder text in built JS bundle.
+- Q: Prompt deployment strategies (A/B testing, canary prompt rollouts) — separate US or fold into US14? → A: Fold into US14 (Prompt Library). The production-version pointer is already there; deployment strategies are the natural extension. Fill the prompt-deployments UI stub as part of US14 work.
+- Q: 4 enterprise stubs (MCP Tool Groups, MCP Auth Config, Large Payload, Proxy/SCIM) have no user story. How to cover? → A: Add one new user story US30 "Enterprise Platform Features" covering all 4 as a group. Priority P3. Each has pre-wired routes and some backend support — primarily UI work to fill the stubs.
+- Q: RBAC model — our backend has 14 resources × 3 verbs but frontend already defines 29 resources × 6 operations. Which wins? → A: Align backend to match the frontend's existing 29 RbacResource enum (GuardrailsConfig, GuardrailsProviders, GuardrailRules, UserProvisioning, Cluster, Settings, Users, Logs, Observability, VirtualKeys, ModelProvider, Plugins, MCPGateway, AdaptiveRouter, AuditLogs, Customers, Teams, RBAC, Governance, RoutingRules, PIIRedactor, PromptRepository, PromptDeploymentStrategy, AccessProfiles, BusinessUnits, AlertChannels, SCIMConfig, MCPToolGroups, MCPAuthConfig) and 6 RbacOperation enum (Read, View, Create, Update, Delete, Download). Drop our 14-resource model. The frontend is already wired — backend must match it.
+- Q: UI routing — fill existing 28 fallback stubs or keep parallel routes we created? → A: Fill existing fallback stubs with real implementations. Drop all parallel routes we created (/workspace/workspaces/, /workspace/organization/). Upstream's routing and sidebar links already point to the correct pages. For US1: businessUnitsView → org/customer management, teamsView → workspace/team management, usersView → user management. For all other enterprise features: replace the ContactUsView stub with a working component in ui/app/enterprise/components/.
+- Q: Tenancy tables — keep parallel ent_organizations/ent_workspaces alongside governance_customers/governance_teams, or consolidate? → A: Option B — use governance_customers as organizations and governance_teams as workspaces directly. Drop ent_organizations and ent_workspaces entirely. Do NOT add enterprise columns to the upstream tables yet — deal with enterprise-specific fields (SSO, retention, residency, etc.) later when specific features require them. The existing Customer/Team fields (Name, BudgetID, RateLimitID, Profile/Claims/Config JSON) are sufficient for MVP. The JSON extension fields on Team (Profile, Claims, Config) are the natural extension point when needed.
 - Q: How does the signing key rotate if compromised or nearing end-of-life? → A: Multi-key embed. Each Bifrost binary ships with an ordered array `[pubkey_v1, pubkey_v2, …]` of valid public keys. On license verification, each embedded key is tried in order; the first valid signature wins. Rotation cadence: 12 months. Rotation flow — (a) generate new keypair, (b) embed new public key alongside existing in the next binary release, (c) start issuing new licenses signed with new key, (d) after all customers are known to be on a binary version containing the new public key, drop the old key in the subsequent release. Air-gapped customers control their update cadence; the vendor MUST support the old key until the longest-deployed air-gapped binary has been superseded.
 - Q: What happens when a license's declared limits (`max_workspaces`, `max_users`, `max_virtual_keys`) are exceeded at runtime? → A: Block-new, allow-existing. Existing resources continue to function unchanged; attempts to CREATE new resources beyond the limit return HTTP 402 with a clear renewal-contact link. `max_users` receives a 10% soft-grace (e.g., a 100-seat license allows 110 active users) with escalating UI warnings at 100%, 105%, 110%. Hard cutoff for `max_workspaces` and `max_virtual_keys` because those affect persistence scale, not just identity count. This pattern prevents production breakage on an overshoot and forces a renewal conversation rather than an outage.
 - Q: Cloud mode — single-region or multi-region in v1? → A: Schema-ready for multi-region, operationally single-region (US-EAST-1) in v1. The `organizations.data_residency_region` column already exists from data-model §1; it defaults to `us-east-1` in v1 and is read-only in the UI. Multi-region activation (adding EU-WEST-1 for GDPR) is a v2 concern that requires no schema migration, only the deployment of a second regional instance and a region-routing front door. Customers requiring EU residency in v1 should use the self-hosted deployment model in their own EU infrastructure.
+
+### Session 2026-04-20
+
+- Q: What actually counts as "in scope" for enterprise parity? → A: **Reuse-over-new.** The scope is exposing upstream logic that already exists, not inventing parallel systems. A fallback `ContactUsView` teaser in the frontend (marketing copy) is NOT proof that the feature exists — it must have real upstream data model, handler, plugin, or context infrastructure to be in scope. Net-new backend inventions (new tables, new handlers, new plugins with no upstream precedent) are out of scope for this spec and MUST be extracted into their own feature specs before any code is written.
+- Q: US5 (admin API keys) — in scope or descoped? → A: **DESCOPED 2026-04-20.** Upstream ships one admin auth path: `auth_config.admin_username` + `admin_password` (basic auth), surfaced by the existing enterprise `apiKeysIndexView` fallback which shows the curl example. A named/scoped/expiring multi-key system has no upstream equivalent and is therefore net-new; if ever revived it must be its own spec. The `apiKeysIndexView` stub remains an OSS fallback re-export — it correctly represents the existing admin-auth surface.
+
+## Scope Rules
+
+### SR-01 Reuse-over-new (added 2026-04-20)
+
+**Rule:** Every user story in this spec MUST map to existing upstream code that is disabled, gated, or un-surfaced. Stories that would require brand-new tables, brand-new handlers, or brand-new plugins that have no upstream precedent are OUT OF SCOPE until extracted into their own feature spec.
+
+**Classification gate (apply to every user story + phase before implementation):**
+
+| In scope — *expose existing logic* | Out of scope — *net-new, requires own spec* |
+|---|---|
+| US1 — Orgs & Workspaces (governance_customers + governance_teams already exist) | **US3** — SSO handlers (SAML/OIDC) — new `handlers/sso.go` + new SAML/OIDC stack |
+| US2 — Granular RBAC (tenancy.RoleRepo + frontend rbacContext enum already exist) | **US5** — Admin API Keys — **DESCOPED 2026-04-20** (upstream basic-auth already provides admin auth) |
+| US4 — System-Wide Audit Logs (TableAuditEntry + audit.Emit already exist) | **US6** — Central Guardrails — new `plugins/guardrails-central/` plugin |
+| US8 — Budget Threshold Alerts (already-shipped governance tracker; extension only) | **US7** — PII Redactor — new `plugins/pii-redactor/` plugin |
+| US12 — Executive Dashboard (existing metrics/analytics handlers) | **US9** — Custom Guardrail Webhooks — depends on US6 guardrails-central |
+| US13 — Retention Periods (configstore extension only) | **US10** — Alerts & Notifications — new `plugins/alerts/` plugin |
+| US14 — Prompt Library (prompts plugin already exists, needs re-enable) | **US11** — Log Export — new `plugins/logexport/` plugin |
+| US30 — Enterprise Platform stubs (MCP tool groups, MCP auth, large payload, proxy/SCIM — all wrap existing handlers) | **US15** — Prompt Playground — new playground handler |
+| | **US16** — Declarative Config Objects — new `handlers/configs.go` + new storage |
+| | **US17** — Service Account Keys — new table + handler |
+| | **US18** — BYOK — new `framework/kms/` module + KMS adapters |
+| | **US19** — Air-Gapped / Cluster — new Helm profile + cluster plumbing |
+| | **US20** — SCIM 2.0 — new `handlers/scim.go` |
+| | **US21** — Terraform Provider — new provider repo |
+| | **US22** — Canary Routing — depends on US16 |
+| | **US23** — Data-Lake ETL — depends on US11 logexport |
+| | **US24–US29** — License + Cloud Commercial (Train E) — new license plugin, new metering, new Stripe integration, new billing portal, new tier matrix |
+
+**Phase-level consequence (tasks.md alignment):**
+
+- **Phase 3 (US1), Phase 4 (US2), Phase 5 (US4), Phase 12 (US30)** — in scope; exposing existing logic.
+- **Phase 6 (US5)** — DESCOPED; fallback stub remains.
+- **Phase 7 (US6), Phase 8 (US7), Phase 9 (US8/US9), Phase 10 (US10), Phase 11 (US11)** — net-new plugins; require their own feature spec before implementation starts.
+- **Phase 13 (US14–US16), Phase 14 (US17), Phase 16 (US3/US19/US20), Phase 17 (US18/US21–US23), Phase 18 (US24–US29)** — net-new; require their own specs.
+
+**How to apply to a user story or phase:**
+
+1. Identify the upstream artifact that implements the feature today (table, handler, plugin, middleware, context).
+2. If no such artifact exists, stop — this is net-new; open a fresh spec via `/speckit-specify`.
+3. If the artifact exists but is guarded or un-surfaced, the in-scope work is: remove the guard, wire the UI, add a thin query handler at most. No new persistence, no new plugin.
+4. A "Contact Us" / marketing teaser in a fallback UI is not an upstream artifact.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -184,7 +239,9 @@ match.
 
 ---
 
-### User Story 5 — Organization-Level Admin API Keys (Priority: P1)
+### User Story 5 — Organization-Level Admin API Keys (Priority: P1) — DESCOPED 2026-04-20
+
+> **Status: DESCOPED 2026-04-20.** Per Scope Rule SR-01 (Reuse-over-new), this story is net-new: upstream has no scoped, named, expiring multi-key admin credential — only the single `auth_config.admin_username` + `admin_password` basic-auth credential, which is already surfaced by the enterprise `apiKeysIndexView` fallback. A parallel scoped-key system has no existing upstream backend to expose. To revive this feature, open a separate spec via `/speckit-specify`. The acceptance scenarios below are preserved for reference in that future spec.
 
 As a **Platform Engineer**, I can create org-level Admin API Keys with
 specific scopes (e.g., "manage virtual keys only", "read analytics only")
@@ -304,45 +361,40 @@ types; verify the redaction event is counted in the PII-redacted metric.
 
 ---
 
-### User Story 8 — Granular Budgets & Rate Limits per Virtual Key (Priority: P2)
+### User Story 8 — Budget Threshold Alerts (Priority: P2) *(ALREADY_SHIPPED — extension only)*
 
-As a **FinOps Manager**, I can set per-virtual-key budget caps (monthly
-dollar or token limit, or custom billing period) and rate limits (per-
-minute / hourly / daily request-count and token-count) so that a single
-team or customer cannot exceed its allocation, and threshold alerts
-automatically notify stakeholders before overage.
+**Upstream status**: The governance plugin (`plugins/governance/`) already
+ships full per-virtual-key budget caps (dollar/token, any reset duration),
+multi-window rate limits (per-minute/hour/day for requests and tokens),
+enforcement at VK/team/customer/provider/model levels, calendar-aligned
+resets, and HTTP 429/402 responses. Tables `governance_budgets` and
+`governance_rate_limits` are fully functional.
 
-**Why this priority**: Unbounded AI spend is the single largest CFO
-concern in AI deployments. Bifrost already has budgets, but per-key
-granularity, multiple simultaneous rate-limit windows, and
-threshold-based alerting (50%, 75%, 90%) are the Portkey parity gap.
+As a **FinOps Manager**, I can configure threshold alerts (50%, 75%, 90%)
+on existing budget caps so that stakeholders are notified via webhook
+and/or Slack before budget exhaustion.
 
-**Independent Test**: Set a virtual key with `$100/month` cap and
-`50 req/min` rate limit; send requests at 60/min and observe after
-request #50 in a minute the 429 response; separately generate traffic
-summing to $95 worth of cost and verify a threshold alert fires;
-continue to $100+ and verify requests reject with budget-exceeded.
+**Why this priority**: Budget enforcement is already shipped. The only
+Portkey parity gap is proactive threshold alerting before limits are hit.
+
+**Independent Test**: Set a virtual key with a `$100/month` budget;
+generate traffic summing to $50 and verify a 50% threshold alert fires
+to the configured Slack channel; continue to $75 and $90 and verify
+subsequent alerts; verify alerts include current spend, threshold
+percentage, and time remaining in period.
 
 **Parity mapping**: https://portkey.ai/docs/product/ai-gateway (Virtual Keys)
 
 **Acceptance Scenarios**:
 
-1. **Given** a virtual key with a monthly budget of $100, **When**
-   cumulative spend reaches configured alert thresholds (50%, 75%, 90%),
-   **Then** a webhook and/or Slack notification fires to the configured
-   recipients with current spend, threshold, and time remaining in
-   period.
-2. **Given** a virtual key with a request rate limit of 50 req/min,
-   **When** the 51st request in a 60-second window arrives, **Then**
-   Bifrost returns HTTP 429 with a `Retry-After` header and a clear body
-   message naming which limit was hit.
-3. **Given** a virtual key with simultaneous per-minute, per-hour, and
-   per-day token limits, **When** any one limit is exceeded, **Then**
-   subsequent requests are rejected with the most specific applicable
-   limit named in the error.
-4. **Given** a new billing period boundary, **When** the period rolls
-   over, **Then** spend counters reset automatically and the key is
-   usable again (unless other limits are hit).
+1. **Given** a virtual key with a monthly budget of $100 and alert
+   thresholds at 50%/75%/90%, **When** cumulative spend crosses each
+   threshold, **Then** a notification fires to the configured alert
+   destinations (webhook, Slack) with current spend, threshold, and
+   time remaining in period.
+2. **Given** threshold alerts are configured, **When** a budget resets
+   at period boundary, **Then** alert state resets and thresholds
+   re-arm for the new period.
 
 ---
 
@@ -559,6 +611,12 @@ pinned to v1 still receives the v1 rendering.
 3. **Given** a prompt folder with a scoped role, **When** a user without
    the scope attempts to view or edit prompts in that folder, **Then**
    they receive 403.
+4. **Given** a prompt with deployment strategies configured, **When** a
+   caller hits the completions endpoint without a version pin, **Then**
+   the deployment strategy (A/B split, canary %, or pinned production
+   version) determines which version is rendered. The
+   `prompt-deployments` UI stub at `/workspace/prompt-repo` is filled
+   with a real deployment-strategy editor (not ContactUsView).
 
 ---
 
@@ -837,6 +895,55 @@ the day's records with the declared schema.
    logged and alerted.
 
 ---
+
+### User Story 30 — Enterprise Platform Features (Priority: P3)
+
+As a **Platform Engineer**, I can configure MCP tool groups (grouping
+and managing MCP tools per workspace), MCP auth configuration (OAuth
+credentials for MCP server connections), large payload optimization
+(streaming and chunking for oversized request/response bodies), and
+proxy/SCIM proxy settings so that all enterprise-gated platform
+capabilities are functional — not just marketing stubs.
+
+**Why this priority**: These 4 features are currently visible as
+"Contact Us" stubs in the enterprise UI. Each has a pre-wired route
+and sidebar entry. Filling them completes 100% enterprise surface
+coverage.
+
+**Scope**:
+- **MCP Tool Groups** (`/workspace/mcp-tool-groups`): manage named
+  groups of MCP tools assignable to virtual keys. Backend: existing
+  MCP handler has tool/client CRUD; UI stub needs real implementation.
+- **MCP Auth Config** (`/workspace/mcp-auth-config`): configure OAuth
+  credentials for authenticated MCP server connections. Backend:
+  existing OAuth2 infrastructure; UI stub needs real implementation.
+- **Large Payload Settings** (fragment in client settings): configure
+  streaming thresholds and chunking for large request/response bodies.
+  Backend: governance plugin already supports large-payload streaming
+  mode (`IsLargePayloadMode`); UI stub needs real implementation.
+- **Proxy Config** (`/workspace/config/proxy`): enterprise proxy
+  settings including SCIM proxy endpoint configuration. Backend:
+  proxy config handler exists; UI stub needs SCIM section filled.
+
+**Independent Test**: Navigate to each of the 4 routes in enterprise
+mode; verify real UI (not ContactUsView) renders with functional
+forms backed by API calls.
+
+**Acceptance Scenarios**:
+
+1. **Given** enterprise mode, **When** a user navigates to
+   `/workspace/mcp-tool-groups`, **Then** they see a functional tool
+   group management interface (not a "Contact Us" stub).
+2. **Given** enterprise mode, **When** a user navigates to
+   `/workspace/mcp-auth-config`, **Then** they see OAuth credential
+   configuration for MCP servers.
+3. **Given** enterprise mode, **When** a user views client settings,
+   **Then** the large payload settings fragment renders with
+   configurable streaming thresholds.
+4. **Given** enterprise mode, **When** a user navigates to
+   `/workspace/config/proxy`, **Then** the proxy page includes the
+   SCIM proxy section (not "SCIM proxy support is available in
+   Bifrost Enterprise" placeholder).
 
 ---
 
@@ -1132,9 +1239,15 @@ available, and a confirmation email is sent.
   (Owner, Admin, Member) and two default workspace-level roles
   (Manager, Member) plus an unbounded set of customer-defined custom
   roles.
-- **FR-004**: System MUST support per-resource scopes (metrics,
-  completions, prompts, configs, guardrails, integrations, providers,
-  models, team-management) with read / write / delete verbs each.
+- **FR-004**: System MUST support per-resource scopes matching the
+  upstream UI's 29-resource RBAC enum (GuardrailsConfig,
+  GuardrailsProviders, GuardrailRules, UserProvisioning, Cluster,
+  Settings, Users, Logs, Observability, VirtualKeys, ModelProvider,
+  Plugins, MCPGateway, AdaptiveRouter, AuditLogs, Customers, Teams,
+  RBAC, Governance, RoutingRules, PIIRedactor, PromptRepository,
+  PromptDeploymentStrategy, AccessProfiles, BusinessUnits,
+  AlertChannels, SCIMConfig, MCPToolGroups, MCPAuthConfig) with 6
+  operations (Read, View, Create, Update, Delete, Download).
 - **FR-005**: System MUST support SSO via SAML 2.0 and OIDC with at
   minimum Okta, Azure AD / Entra ID, Google Workspace, and generic
   OIDC compliance.
@@ -1186,19 +1299,24 @@ available, and a confirmation email is sent.
   (redact-in-logs-only vs redact-before-provider), a configurable PII
   pattern set, and a fail-closed mode.
 
-**Budgets & Rate Limits:**
+**Budgets & Rate Limits** *(ALREADY_SHIPPED by governance plugin — extension only)*:
 
-- **FR-020**: System MUST enforce per-virtual-key budget caps in
-  dollars and/or tokens with configurable billing period (monthly,
-  weekly, custom).
-- **FR-021**: System MUST enforce per-virtual-key rate limits on
-  request count and token count with per-minute, per-hour, and
-  per-day windows, any of which may be set independently.
+- **FR-020**: ~~System MUST enforce per-virtual-key budget caps~~ →
+  ALREADY_SHIPPED. `plugins/governance/` enforces per-VK budget caps
+  with configurable reset durations via `governance_budgets` table.
+  No new implementation required.
+- **FR-021**: ~~System MUST enforce per-virtual-key rate limits~~ →
+  ALREADY_SHIPPED. `plugins/governance/` enforces per-VK rate limits
+  on tokens and requests via `governance_rate_limits` table. No new
+  implementation required.
 - **FR-022**: System MUST fire threshold alerts (configurable, default
-  50%, 75%, 90%) to configured destinations before budget exhaustion.
-- **FR-023**: System MUST return HTTP 429 with a machine-readable
-  body and `Retry-After` header when rate limit is exceeded, and
-  HTTP 402 (or 429 per preference) when budget is exceeded.
+  50%, 75%, 90%) to configured alert destinations before budget
+  exhaustion. **This is the only NEW work for US8** — add threshold
+  emission to the existing `plugins/governance/tracker.go` usage
+  update path.
+- **FR-023**: ~~System MUST return HTTP 429/402~~ → ALREADY_SHIPPED.
+  `plugins/governance/resolver.go` already returns `DecisionRateLimited`,
+  `DecisionBudgetExceeded` which map to HTTP 429/402 in the transport.
 
 **Alerts & Observability:**
 
@@ -1486,6 +1604,12 @@ available, and a confirmation email is sent.
 - **SC-019**: Customer self-service tier upgrade (Dev → Prod)
   completes in <5 minutes end-to-end (click Upgrade → Stripe
   checkout → confirmation email → tier features active).
+- **SC-020**: Zero ContactUsView stubs remain in the enterprise
+  build. Every route under `ui/app/workspace/` that imports from
+  `@enterprise/components/` renders a functional implementation —
+  not a marketing placeholder. Validated by a CI check that greps
+  the built JS bundle for "This feature is a part of the Bifrost
+  enterprise license" and fails if found.
 
 ## Assumptions
 

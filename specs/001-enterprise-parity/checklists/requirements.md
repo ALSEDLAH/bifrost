@@ -91,3 +91,19 @@ ready). Added FR-046a/b/c and FR-050a/b. Added T404a, T404b,
 updated T404 and T458. Updated research.md R-26 with multi-key
 embed specifics + issuance runbook + limits policy. All additive;
 no prior decisions reversed.
+
+**Scope refinement (2026-04-20):** Added **Scope Rules section with
+SR-01 Reuse-over-new** plus an explicit in-scope / out-of-scope
+classification table covering all 30 user stories. **US5 (admin API
+keys) marked DESCOPED** after runtime discovery that the
+implementation was inventing a new parallel credential system
+(`ent_admin_api_keys` table + `/api/admin-api-keys` handler + reveal-
+once secret UI) rather than surfacing an existing upstream feature;
+the upstream single-admin-credential path (`auth_config`) already
+surfaces via the existing fallback. Phase 6 tasks (T038–T043)
+reverted and marked `[~]` (descoped) in tasks.md. Phases 7, 8, 10,
+11 (new plugins) and Phases 16, 17, 18 (new handlers/modules/
+integrations) flagged as "net-new — requires own spec before any
+implementation". No prior *in-scope* decisions reversed; this is a
+scope narrowing that tightens the invent-vs-expose boundary. Checklist
+items still pass — the refinement is additive to existing content.
