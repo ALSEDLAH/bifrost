@@ -36,6 +36,7 @@ import { toast } from "sonner";
 
 const PAGE_SIZE = 50;
 const OUTCOMES: AuditOutcome[] = ["allowed", "denied", "error"];
+const OUTCOME_ANY = "__any__";
 
 function outcomeBadge(outcome: string) {
 	if (outcome === "denied") return <Badge variant="destructive">Denied</Badge>;
@@ -118,7 +119,7 @@ export default function AuditLogsView() {
 	const [actor, setActor] = useState("");
 	const [action, setAction] = useState("");
 	const [resourceType, setResourceType] = useState("");
-	const [outcome, setOutcome] = useState<string>("");
+	const [outcome, setOutcome] = useState<string>(OUTCOME_ANY);
 	const [from, setFrom] = useState("");
 	const [to, setTo] = useState("");
 	const [offset, setOffset] = useState(0);
@@ -150,7 +151,7 @@ export default function AuditLogsView() {
 			actor_id: actor.trim() || undefined,
 			action: action.trim() || undefined,
 			resource_type: resourceType.trim() || undefined,
-			outcome: (outcome as AuditOutcome) || undefined,
+			outcome: outcome !== OUTCOME_ANY ? (outcome as AuditOutcome) : undefined,
 			from: toRFC3339(from),
 			to: toRFC3339(to),
 		});
@@ -160,7 +161,7 @@ export default function AuditLogsView() {
 		setActor("");
 		setAction("");
 		setResourceType("");
-		setOutcome("");
+		setOutcome(OUTCOME_ANY);
 		setFrom("");
 		setTo("");
 		setOffset(0);
@@ -236,7 +237,7 @@ export default function AuditLogsView() {
 							<SelectValue placeholder="Any outcome" />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="">Any</SelectItem>
+							<SelectItem value={OUTCOME_ANY}>Any</SelectItem>
 							{OUTCOMES.map((o) => (
 								<SelectItem key={o} value={o}>{o}</SelectItem>
 							))}
