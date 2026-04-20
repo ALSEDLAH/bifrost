@@ -59,8 +59,13 @@ var droppedTotal atomic.Uint64
 func DroppedTotal() uint64 { return droppedTotal.Load() }
 
 // Init constructs the audit plugin and starts its async worker.
-// db must be the logstore *gorm.DB so audit entries land in the same
-// store as request logs (consistent retention + export).
+//
+// db is the *gorm.DB that holds `ent_audit_entries`. Per spec
+// clarification 2026-04-20, audit entries live in the **configstore**
+// (co-located with `ent_roles`, `ent_users`, governance tables they
+// reference), not the logstore. The `logstore.TableAuditEntry` type
+// is authored in the logstore package for historical reasons — the
+// package name no longer implies the physical database.
 func Init(ctx context.Context, db *gorm.DB, logger schemas.Logger, cfg Config) (*Plugin, error) {
 	if db == nil {
 		return nil, fmt.Errorf("audit: nil db")

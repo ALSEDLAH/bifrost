@@ -20,17 +20,30 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// v1 attribution per spec clarification 2026-04-20: every admin action
+// reaches handlers via the upstream basic-auth credential (one shared
+// identity). Emit entries under a synthetic "system" actor with a
+// stable id so logs are self-documenting. When session→user middleware
+// lands in a later spec, the TenantContext arriving here will carry a
+// real UserID and this synthesis becomes a no-op.
+const (
+	syntheticActorType = tenancy.Resolver("system")
+	syntheticActorID   = "upstream-admin"
+)
+
 func buildAuditCtx(ctx *fasthttp.RequestCtx, orgID string) *schemas.BifrostContext {
 	// 10s deadline is plenty for a synchronous audit write; callers pass
 	// the request ctx so deadline cancellation still propagates.
 	bctx := schemas.NewBifrostContext(ctx, time.Now().Add(10*time.Second))
 	tc := tenancy.TenantContext{
 		OrganizationID: orgID,
-		ResolvedVia:    tenancy.ResolverDefault,
+		UserID:         syntheticActorID,
+		ResolvedVia:    syntheticActorType,
 	}
 	bctx.SetValue(tenancy.BifrostContextKeyTenantContext, tc)
 	bctx.SetValue(tenancy.BifrostContextKeyOrganizationID, orgID)
-	bctx.SetValue(tenancy.BifrostContextKeyResolvedVia, tenancy.ResolverDefault)
+	bctx.SetValue(tenancy.BifrostContextKeyUserID, syntheticActorID)
+	bctx.SetValue(tenancy.BifrostContextKeyResolvedVia, syntheticActorType)
 	return bctx
 }
 

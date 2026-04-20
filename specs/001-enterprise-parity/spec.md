@@ -34,6 +34,10 @@
 
 - Q: What actually counts as "in scope" for enterprise parity? → A: **Reuse-over-new.** The scope is exposing upstream logic that already exists, not inventing parallel systems. A fallback `ContactUsView` teaser in the frontend (marketing copy) is NOT proof that the feature exists — it must have real upstream data model, handler, plugin, or context infrastructure to be in scope. Net-new backend inventions (new tables, new handlers, new plugins with no upstream precedent) are out of scope for this spec and MUST be extracted into their own feature specs before any code is written.
 - Q: US5 (admin API keys) — in scope or descoped? → A: **DESCOPED 2026-04-20.** Upstream ships one admin auth path: `auth_config.admin_username` + `admin_password` (basic auth), surfaced by the existing enterprise `apiKeysIndexView` fallback which shows the curl example. A named/scoped/expiring multi-key system has no upstream equivalent and is therefore net-new; if ever revived it must be its own spec. The `apiKeysIndexView` stub remains an OSS fallback re-export — it correctly represents the existing admin-auth surface.
+- Q: US14 Prompt Library — in scope as a whole, or split? → A: **Split.** Basic prompt library (templates, variable substitution, folders, version history) is IN SCOPE — already satisfied by the re-enabled upstream `plugins/prompts/` in Phase 1 T012 (no new code required here). Deployment-strategies subset (A/B split, canary, production-version pointer — T068–T070) is OUT OF SCOPE per SR-01: extending the prompts plugin with new deployment primitives is net-new and needs its own feature spec. FR-029 retained with this split called out explicitly; FR-029-deployments moves to a future spec. The prompt-deployments UI stubs (`promptDeploymentView.tsx`, `promptDeploymentsAccordionItem.tsx`) stay as OSS fallback re-exports with a DESCOPED whitelist entry in `scripts/check-sc020-enterprise-stubs.sh`.
+- Q: Audit entry `actor_id` attribution in v1 (no per-request auth→user middleware wired) → A: **Synthetic "upstream-admin".** When the default tenant resolver produces a TenantContext (i.e., admin action reached a handler via the upstream basic-auth credential), audit entries are attributed with `actor_type="system"` and `actor_id="upstream-admin"`. This makes logs self-documenting (no confusing blanks), matches the real identity behind the call (one shared admin credential), and will flip to real user IDs automatically when session→user middleware lands in a future spec — callers of `emitAudit` don't change.
+- Q: v1 RBAC enforcement surface — server-side scope checks on which endpoints? → A: **UI-only gates in v1, binary server auth (matches upstream posture per SR-01).** `useRbac(resource, operation)` hides UI controls; basic-auth / session-token remains the only server gate. The 24-resource × 6-operation scope model is persisted in `ent_roles` / `ent_user_role_assignments` and consumed by the UI via `/api/rbac/me`, but no server handler reads `TenantContext.RoleScopes` today. Adding server-side scope enforcement is a **net-new enforcement layer** with no upstream precedent — same SR-01 class as admin API keys — and belongs in its own feature spec. A client bypassing the UI and calling enterprise endpoints with valid basic-auth WILL succeed; this limitation is documented in `docs/enterprise/rbac.mdx` under "Notes & limits".
+- Q: `ent_audit_entries` — which database (configstore vs logstore)? → A: **Configstore** (e.g. `config.db` in SQLite deployments). Audit rows are semantically closer to the governance + RBAC tables they reference (`role.create` entry vs `ent_roles` row) than to request-body logs, and co-locating them keeps self-hosted deployments on a single SQLite file. The original plugin doc comment said "logstore DB"; that predates the post-audit table refactor. Plugin comment, FR-012, and `docs/enterprise/audit-logs.mdx` are updated to match shipped reality. No data migration needed.
 
 ## Scope Rules
 
@@ -51,7 +55,8 @@
 | US8 — Budget Threshold Alerts (already-shipped governance tracker; extension only) | **US7** — PII Redactor — new `plugins/pii-redactor/` plugin |
 | US12 — Executive Dashboard (existing metrics/analytics handlers) | **US9** — Custom Guardrail Webhooks — depends on US6 guardrails-central |
 | US13 — Retention Periods (configstore extension only) | **US10** — Alerts & Notifications — new `plugins/alerts/` plugin |
-| US14 — Prompt Library (prompts plugin already exists, needs re-enable) | **US11** — Log Export — new `plugins/logexport/` plugin |
+| US14 basic — Prompt Library (templates, variables, folders, version history) — satisfied by upstream `plugins/prompts/` re-enable (Phase 1 T012) | **US11** — Log Export — new `plugins/logexport/` plugin |
+| | **US14-deployments** — A/B split, canary, production-version pointer — net-new extension of `plugins/prompts/` (T068–T070); needs own spec |
 | US30 — Enterprise Platform stubs (MCP tool groups, MCP auth, large payload, proxy/SCIM — all wrap existing handlers) | **US15** — Prompt Playground — new playground handler |
 | | **US16** — Declarative Config Objects — new `handlers/configs.go` + new storage |
 | | **US17** — Service Account Keys — new table + handler |
@@ -577,6 +582,7 @@ entry records the retention-driven deletion count.
 ---
 
 ### User Story 14 — Prompt Library with Versioning (Priority: P4)
+*(status per SR-01 2026-04-20: **basic library IN SCOPE** — already satisfied by `plugins/prompts/` re-enable in Phase 1 T012. **Deployment-strategies subset (A/B, canary, production pointer) DESCOPED** — T068–T070 stay as `[~]`; needs its own spec.)*
 
 As a **Prompt Engineer**, I can author prompt templates with variable
 substitution and reusable fragments (partials), commit versioned
@@ -1236,19 +1242,22 @@ available, and a confirmation email is sent.
 - **FR-002**: System MUST auto-migrate pre-existing v1.5.2 data into
   a default organization + default workspace on first startup of the
   enterprise-capable build, with zero configuration required.
-- **FR-003**: System MUST enforce three default org-level roles
-  (Owner, Admin, Member) and two default workspace-level roles
-  (Manager, Member) plus an unbounded set of customer-defined custom
-  roles.
+- **FR-003**: System MUST persist four default roles — Owner, Admin,
+  Manager, Member — plus an unbounded set of customer-defined custom
+  roles. (v1 enforcement scope, per clarification 2026-04-20: role
+  model is **stored and consumed by the UI's `useRbac` gate**;
+  server-side scope enforcement on admin handlers is explicitly out
+  of v1 scope and needs its own feature spec.)
 - **FR-004**: System MUST support per-resource scopes matching the
-  upstream UI's 29-resource RBAC enum (GuardrailsConfig,
+  upstream UI's 24-resource RBAC enum (GuardrailsConfig,
   GuardrailsProviders, GuardrailRules, UserProvisioning, Cluster,
   Settings, Users, Logs, Observability, VirtualKeys, ModelProvider,
   Plugins, MCPGateway, AdaptiveRouter, AuditLogs, Customers, Teams,
   RBAC, Governance, RoutingRules, PIIRedactor, PromptRepository,
-  PromptDeploymentStrategy, AccessProfiles, BusinessUnits,
-  AlertChannels, SCIMConfig, MCPToolGroups, MCPAuthConfig) with 6
-  operations (Read, View, Create, Update, Delete, Download).
+  PromptDeploymentStrategy, AccessProfiles) with 6 operations
+  (Read, View, Create, Update, Delete, Download). (v1 enforcement
+  scope, per clarification 2026-04-20: scopes are UI-gated only —
+  see FR-003 note and `docs/enterprise/rbac.mdx` §"Notes & limits".)
 - **FR-005** *(DESCOPED 2026-04-20 per SR-01 — US3 net-new; needs own spec)*: System MUST support SSO via SAML 2.0 and OIDC with at
   minimum Okta, Azure AD / Entra ID, Google Workspace, and generic
   OIDC compliance.
@@ -1269,12 +1278,26 @@ available, and a confirmation email is sent.
   administrative or governance action including actor ID, actor IP,
   action type, resource type, resource ID, before/after values,
   outcome (allowed/denied), request ID, and ISO 8601 timestamp.
+  **Attribution in v1 (no session→user middleware yet, per
+  clarification 2026-04-20):** when an admin action reaches a
+  handler via the synthetic default tenant resolver (upstream basic-
+  auth credential, single shared identity), audit entries carry
+  `actor_type="system"`, `actor_id="upstream-admin"`. Real per-user
+  attribution activates automatically once tenant-resolution
+  middleware lands in a later spec — `emitAudit` callers require no
+  change.
 - **FR-011**: System MUST expose audit log query with filters
   (actor, action, resource, time range, outcome) and export to CSV
   and JSON, complete (no truncation) up to at least 10M entries.
 - **FR-012**: System MUST persist audit entries for a duration at
   least as long as the longest configured retention policy, and in
-  no case less than 1 year when audit logging is enabled.
+  no case less than 1 year when audit logging is enabled. Per
+  clarification 2026-04-20, audit rows live in the **configstore**
+  (co-located with `ent_roles`, `ent_users`, and governance tables
+  they reference — a `role.create` entry sits alongside its row).
+  Automatic retention-based cleanup is NOT in v1 scope; rows
+  accumulate indefinitely until the operator runs cleanup SQL or a
+  retention task ships in its own spec.
 
 **Guardrails** *(FR-013..FR-018 DESCOPED 2026-04-20 per SR-01 — US6/US9 net-new `plugins/guardrails-central/`; needs own spec)*:
 
@@ -1338,19 +1361,21 @@ available, and a confirmation email is sent.
 
 **Prompts & Configs:**
 
-- **FR-029**: System MUST support prompt templates with variable
+- **FR-029** *(ALREADY_SHIPPED upstream — `plugins/prompts/` re-enabled in Phase 1 T012)*: System MUST support prompt templates with variable
   substitution (Mustache-compatible), partials (reusable fragments),
-  folder organization with per-folder access scopes, full version
-  history, and a designated "production" version per prompt. In
-  v1, prompts, versions, partials, and folder metadata are
-  persisted in the existing configstore (reusing its multi-tenancy,
-  encryption, and hot-reload infrastructure). A dedicated
+  folder organization with per-folder access scopes, and full version
+  history. Persisted in the existing configstore (reusing its multi-
+  tenancy, encryption, and hot-reload infrastructure). A dedicated
   `framework/promptstore/` subsystem is explicitly deferred to v2
-  and is out of scope for this feature.
-- **FR-030**: System MUST expose `/prompts/<id>/render` and
+  and is out of scope for this feature. **Note:** the "designated
+  production version per prompt" pointer and deployment strategies
+  (A/B split, canary) are DESCOPED per SR-01 clarification 2026-04-20
+  (see US14-deployments in the SR-01 table — net-new extension of
+  the prompts plugin; needs its own spec).
+- **FR-030** *(ALREADY_SHIPPED upstream — `plugins/prompts/` exposes these endpoints; re-enabled in Phase 1 T012)*: System MUST expose `/prompts/<id>/render` and
   `/prompts/<id>/completions` endpoints that accept variables and
   return the rendered or fully-executed completion.
-- **FR-031**: System MUST support multimodal prompts combining text
+- **FR-031** *(ALREADY_SHIPPED upstream — `plugins/prompts/`)*: System MUST support multimodal prompts combining text
   and images.
 - **FR-032** *(DESCOPED 2026-04-20 per SR-01 — US15 net-new playground handler; needs own spec)*: System MUST support an interactive Playground for
   running a single prompt against N selected models in parallel,
