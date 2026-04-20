@@ -361,7 +361,8 @@ types; verify the redaction event is counted in the PII-redacted metric.
 
 ---
 
-### User Story 8 — Budget Threshold Alerts (Priority: P2) *(ALREADY_SHIPPED — extension only)*
+### User Story 8 — Budget Threshold Alerts (Priority: P2)
+*(status per SR-01 classification table: in scope as an extension of the already-shipped governance tracker — delivered 2026-04-20 as T055)*
 
 **Upstream status**: The governance plugin (`plugins/governance/`) already
 ships full per-virtual-key budget caps (dollar/token, any reset duration),
@@ -1299,25 +1300,24 @@ available, and a confirmation email is sent.
   (redact-in-logs-only vs redact-before-provider), a configurable PII
   pattern set, and a fail-closed mode.
 
-**Budgets & Rate Limits** *(ALREADY_SHIPPED by governance plugin — extension only)*:
+**Budgets & Rate Limits:**
 
-- **FR-020**: ~~System MUST enforce per-virtual-key budget caps~~ →
-  ALREADY_SHIPPED. `plugins/governance/` enforces per-VK budget caps
+- **FR-020** *(ALREADY_SHIPPED upstream — `plugins/governance/`)*: System MUST enforce per-virtual-key budget caps
   with configurable reset durations via `governance_budgets` table.
   No new implementation required.
-- **FR-021**: ~~System MUST enforce per-virtual-key rate limits~~ →
-  ALREADY_SHIPPED. `plugins/governance/` enforces per-VK rate limits
+- **FR-021** *(ALREADY_SHIPPED upstream — `plugins/governance/`)*: System MUST enforce per-virtual-key rate limits
   on tokens and requests via `governance_rate_limits` table. No new
   implementation required.
-- **FR-022** *(delivered 2026-04-20 as T055; defaults-only in v1 — per-budget configurability deferred to a follow-up spec)*: System MUST fire threshold alerts (configurable, default
-  50%, 75%, 90%) to configured alert destinations before budget
-  exhaustion. Delivered via `plugins/governance/tracker_thresholds.go`
-  (sibling-file extension); destinations in v1 = `logger.Warn` +
-  WebSocket push. External destinations (Slack / webhook / email)
-  remain DESCOPED per SR-01 (US10).
-- **FR-023**: ~~System MUST return HTTP 429/402~~ → ALREADY_SHIPPED.
-  `plugins/governance/resolver.go` already returns `DecisionRateLimited`,
-  `DecisionBudgetExceeded` which map to HTTP 429/402 in the transport.
+- **FR-022** *(DELIVERED 2026-04-20 as T055 — defaults-only in v1, per-budget configurability deferred)*: System MUST fire threshold alerts at 50%, 75%, and 90% of
+  budget to available alert destinations before budget exhaustion.
+  Delivered via `plugins/governance/tracker_thresholds.go` (sibling-
+  file extension); destinations in v1 = `logger.Warn` + WebSocket
+  push. Per-budget configuration of the threshold levels and
+  external destinations (Slack / webhook / email per US10) are
+  explicitly OUT of v1 scope; both need their own feature spec.
+- **FR-023** *(ALREADY_SHIPPED upstream — `plugins/governance/resolver.go`)*: System MUST return HTTP 429 / 402.
+  `DecisionRateLimited` and `DecisionBudgetExceeded` already map to
+  HTTP 429 / 402 in the transport.
 
 **Alerts & Observability:**
 
@@ -1566,45 +1566,45 @@ available, and a confirmation email is sent.
 - **SC-006**: No enterprise feature requires a modification under
   `core/**` — enforced by a CI check that diffs `core/` against the
   pre-feature baseline.
-- **SC-007**: PII redaction achieves ≥98% recall on an industry-
+- **SC-007** *(applies when US7 PII redactor ships in its own spec)*: PII redaction achieves ≥98% recall on an industry-
   standard PII benchmark set (PII-NER eval corpus) with false-
   positive rate ≤2%.
-- **SC-008**: Guardrail execution at p95 adds ≤50ms when
+- **SC-008** *(applies when US6 guardrails-central ships in its own spec)*: Guardrail execution at p95 adds ≤50ms when
   synchronous-parallel with up to 5 guardrails active.
-- **SC-009**: BYOK-enabled deployments can sustain full read/write
+- **SC-009** *(applies when US18 BYOK ships in its own spec)*: BYOK-enabled deployments can sustain full read/write
   throughput with data-key caching set to 15 minutes, with KMS call
   rate ≤ 1/minute per running instance.
-- **SC-010**: Log export reliably delivers ≥99.9% of log records
+- **SC-010** *(applies when US11 log export ships in its own spec)*: Log export reliably delivers ≥99.9% of log records
   to the configured destination under a 1,000 RPS sustained load
   with target unreachable for up to 10 minutes (via retry + dead-
   letter queue).
-- **SC-011**: Audit log query for a filtered range over 10M entries
+- **SC-011** *(needs its own perf harness — no task yet; open as a Phase-19 follow-up)*: Audit log query for a filtered range over 10M entries
   returns first page within 2 seconds p95.
-- **SC-012**: User-lifecycle events via SCIM propagate to Bifrost
+- **SC-012** *(applies when US20 SCIM ships in its own spec)*: User-lifecycle events via SCIM propagate to Bifrost
   within 10 minutes p95 of IdP event.
 - **SC-013**: Zero plaintext secrets in any logstore record, metric
   label, trace attribute, or external export — validated by a
-  continuous scanner in CI and in production.
-- **SC-014**: Published Helm airgapped profile installs and passes
+  continuous scanner in CI and in production. *(T099 deferred — scanner harness pending.)*
+- **SC-014** *(applies when US19 air-gapped Helm profile ships in its own spec)*: Published Helm airgapped profile installs and passes
   smoke tests on a cluster with egress restricted to cluster-
   internal only.
-- **SC-015**: Terraform provider achieves round-trip stability
+- **SC-015** *(applies when US21 Terraform provider ships in its own spec)*: Terraform provider achieves round-trip stability
   (apply → no-op plan) across 10 consecutive runs against a
   representative workspace configuration.
-- **SC-016**: Offline license signature verification completes in
+- **SC-016** *(applies when US24 license activation ships in its own spec)*: Offline license signature verification completes in
   <100ms on boot for a license file up to 4KB, measured on the
   reference container image. No network call is issued during
   verification (validated by eBPF socket monitor).
-- **SC-017**: License-expiry grace period + UI banner + daily audit
+- **SC-017** *(applies when US25 license expiry ships in its own spec)*: License-expiry grace period + UI banner + daily audit
   entries + graceful-degradation-at-grace-end all function as
   designed, validated by a time-travel fixture that steps the
   system clock through pre-expiry / expiry / grace / post-grace
   phases and asserts state transitions.
-- **SC-018**: Cloud-tier billing accurately attributes ≥99.9% of
+- **SC-018** *(applies when US26–US27 metering + Stripe ship in their own spec)*: Cloud-tier billing accurately attributes ≥99.9% of
   requests to the correct organization with correct cost, validated
   by a reconciliation test that replays a metered fixture and
   compares Bifrost's rollup to an independently computed reference.
-- **SC-019**: Customer self-service tier upgrade (Dev → Prod)
+- **SC-019** *(applies when US29 tier management ships in its own spec)*: Customer self-service tier upgrade (Dev → Prod)
   completes in <5 minutes end-to-end (click Upgrade → Stripe
   checkout → confirmation email → tier features active).
 - **SC-020** (revised 2026-04-20 per SR-01): Zero ContactUsView stubs
