@@ -1140,6 +1140,14 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	if loggingHandler != nil {
 		loggingHandler.RegisterRoutes(s.Router, middlewares...)
 	}
+	// Audit log query handler (US4).
+	if s.Config.LogsStore != nil {
+		auditLogsHandler := handlers.NewAuditLogsHandler(s.Config.ConfigStore.DB(), logger)
+		auditLogsHandler.RegisterRoutes(s.Router, middlewares...)
+	}
+	// RBAC role/user/assignment handler (US2).
+	rbacHandler := handlers.NewRBACHandler(s.Config.ConfigStore.DB(), logger)
+	rbacHandler.RegisterRoutes(s.Router, middlewares...)
 	if s.WebSocketHandler != nil {
 		s.WebSocketHandler.RegisterRoutes(s.Router, middlewares...)
 	}
@@ -1301,6 +1309,19 @@ func (s *BifrostHTTPServer) Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to instantiate plugins: %v", err)
 	}
 
+	// Run enterprise migrations (users, roles, audit entries).
+	// Previously called by enterprise-gate plugin; now called directly.
+	if s.Config.ConfigStore != nil {
+		if migErr := configstore.RegisterEnterpriseMigrations(ctx, s.Config.ConfigStore.DB()); migErr != nil {
+			logger.Warn("enterprise configstore migrations: %v (non-fatal)", migErr)
+		}
+	}
+	if s.Config.LogsStore != nil {
+		if migErr := logstore.RegisterEnterpriseMigrations(ctx, s.Config.ConfigStore.DB()); migErr != nil {
+			logger.Warn("enterprise logstore migrations: %v (non-fatal)", migErr)
+		}
+	}
+
 	// Initialize async job executor (requires LogsStore + governance plugin)
 	if s.Config.LogsStore != nil {
 		governancePlugin, govErr := lib.FindPluginAs[governance.BaseGovernancePlugin](s.Config, s.getGovernancePluginName())
@@ -1411,9 +1432,7 @@ func (s *BifrostHTTPServer) Bootstrap(ctx context.Context) error {
 			s.WSTicketStore = nil
 			return fmt.Errorf("failed to initialize auth middleware: %v", err)
 		}
-		if ctx.Value(schemas.BifrostContextKeyIsEnterprise) == nil {
-			apiMiddlewares = append(apiMiddlewares, s.AuthMiddleware.APIMiddleware())
-		}
+		apiMiddlewares = append(apiMiddlewares, s.AuthMiddleware.APIMiddleware())
 	}
 	// Register routes
 	err = s.RegisterAPIRoutes(s.Ctx, s, apiMiddlewares...)
@@ -1425,7 +1444,7 @@ func (s *BifrostHTTPServer) Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize routes: %v", err)
 	}
 	// Registering inference routes
-	if ctx.Value(schemas.BifrostContextKeyIsEnterprise) == nil && s.AuthMiddleware != nil {
+	if s.AuthMiddleware != nil {
 		inferenceMiddlewares = append(inferenceMiddlewares, s.AuthMiddleware.InferenceMiddleware())
 	}
 	// Once auth is done we will first add the Tracing middleware
