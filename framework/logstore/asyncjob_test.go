@@ -92,6 +92,7 @@ func TestSubmitJob_PropagatesContextValues(t *testing.T) {
 		schemas.BifrostContextKey("x-bf-prom-env"):  "production",
 		schemas.BifrostContextKey("x-bf-eh-custom"): "custom-value",
 	}
+	_ = contextValues // TODO: wire into SubmitJob signature — left over from upstream #2830
 
 	var capturedCtx *schemas.BifrostContext
 	var done atomic.Bool
