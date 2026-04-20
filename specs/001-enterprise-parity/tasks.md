@@ -163,7 +163,7 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Independent Test**: Set $100 budget; generate $50 spend; verify 50% alert fires.
 
-- [ ] T055 [US8] Add threshold-alert emission to `plugins/governance/tracker.go` — emit at 50%/75%/90% of budget to configured alert destinations
+- [X] T055 [US8] Threshold-alert emission at 50/75/90% of budget — sibling-file extension (`plugins/governance/tracker_thresholds.go` + `main_thresholds.go`) with a 1-line hook in upstream `tracker.go` and 1-line wiring in `server.go`. Emits via `logger.Warn` + opt-in `schemas.EventBroadcaster` (WebSocket push). UI: `useBudgetThresholdAlerts` hook mounted in `clientLayout.tsx` shows a sonner toast on each crossing. Slack/webhook destinations remain descoped (US10). FR-022 "configurable" partially met — defaults-only in v1, per-budget thresholds need a follow-up.
 - [ ] T056 [US9] Add webhook guardrail type to `plugins/guardrails-central/` — HMAC signing, timeout, fail-open/fail-closed
 
 **Checkpoint**: US8 + US9 complete. Budget alerts and custom guardrail webhooks functional.
