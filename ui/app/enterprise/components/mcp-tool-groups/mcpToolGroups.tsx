@@ -36,7 +36,7 @@ import {
 } from "@/lib/store/apis";
 import { parseToolRefs, type MCPToolGroup, type MCPToolRef } from "@/lib/types/mcpToolGroups";
 import { RbacOperation, RbacResource, useRbac } from "@enterprise/lib";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -65,6 +65,11 @@ export default function MCPToolGroupsView() {
 
 	const groups = useMemo(() => groupsData?.groups ?? [], [groupsData]);
 	const clients = useMemo(() => clientsData?.clients ?? [], [clientsData]);
+	const knownClientIds = useMemo(() => new Set(clients.map((c) => c.config.client_id)), [clients]);
+	const staleRefs = useMemo(
+		() => Object.values(selected).filter((r) => !knownClientIds.has(r.mcp_client_id)),
+		[selected, knownClientIds],
+	);
 
 	if (!hasView) return <NoPermissionView entity="MCP tool groups" />;
 
@@ -230,6 +235,11 @@ export default function MCPToolGroupsView() {
 						</DialogTitle>
 						<DialogDescription>
 							Group tools together for discoverability. Example names: "read-only", "destructive", "customer-facing".
+							{mode.kind === "edit" && (
+								<span className="mt-1 block text-[11px]">
+									Last saved {new Date(mode.group.updated_at).toLocaleString()} — if someone else saved newer, your changes will overwrite theirs.
+								</span>
+							)}
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-3">
@@ -252,6 +262,30 @@ export default function MCPToolGroupsView() {
 						</div>
 						<div className="space-y-2">
 							<Label>Tools</Label>
+							{staleRefs.length > 0 && (
+								<div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+									<p className="text-xs font-semibold">Missing references ({staleRefs.length})</p>
+									<ul className="mt-1 space-y-1 text-xs">
+										{staleRefs.map((r) => (
+											<li key={refKey(r)} className="flex items-center justify-between gap-2">
+												<span className="font-mono">
+													{r.tool_name}{" "}
+													<span className="text-muted-foreground">(deleted: {r.mcp_client_id})</span>
+												</span>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="h-6 w-6 p-0"
+													onClick={() => toggleRef(r)}
+													aria-label="Remove missing reference"
+												>
+													<X className="h-3 w-3" />
+												</Button>
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
 							<div className="max-h-64 space-y-3 overflow-auto rounded-md border p-3">
 								{clients.length === 0 ? (
 									<p className="text-muted-foreground text-sm">No MCP clients configured.</p>

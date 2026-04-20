@@ -5,6 +5,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/fasthttp/router"
 	"github.com/maximhq/bifrost/core/schemas"
@@ -63,6 +64,11 @@ func (h *MCPToolGroupsHandler) create(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusBadRequest, "name is required")
 		return
 	}
+	// Case-insensitive uniqueness (spec 005 FR-001).
+	if existing, _ := h.store.GetMCPToolGroupByName(ctx, req.Name); existing != nil {
+		SendError(ctx, fasthttp.StatusConflict, fmt.Sprintf("a tool group named %q already exists (case-insensitive)", req.Name))
+		return
+	}
 	toolsJSON, err := marshalTools(req.Tools)
 	if err != nil {
 		SendError(ctx, fasthttp.StatusBadRequest, err.Error())
@@ -96,7 +102,14 @@ func (h *MCPToolGroupsHandler) update(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusBadRequest, fmt.Sprintf("invalid body: %v", err))
 		return
 	}
-	if req.Name != "" {
+	if req.Name != "" && !strings.EqualFold(req.Name, existing.Name) {
+		if conflict, _ := h.store.GetMCPToolGroupByName(ctx, req.Name); conflict != nil && conflict.ID != existing.ID {
+			SendError(ctx, fasthttp.StatusConflict, fmt.Sprintf("a tool group named %q already exists (case-insensitive)", req.Name))
+			return
+		}
+		existing.Name = req.Name
+	} else if req.Name != "" {
+		// Same name, different case — accept as rename-to-normalize.
 		existing.Name = req.Name
 	}
 	if req.Description != "" || ctxBodyHasKey(ctx.PostBody(), "description") {

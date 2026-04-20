@@ -32,6 +32,19 @@ func (s *RDBConfigStore) GetMCPToolGroupByID(ctx context.Context, id string) (*t
 	return &g, nil
 }
 
+// GetMCPToolGroupByName looks up a tool group by case-insensitive name
+// (spec 005 FR-001). Returns nil, nil when not found.
+func (s *RDBConfigStore) GetMCPToolGroupByName(ctx context.Context, name string) (*tables_enterprise.TableMCPToolGroup, error) {
+	var g tables_enterprise.TableMCPToolGroup
+	if err := s.db.WithContext(ctx).Where("LOWER(name) = LOWER(?)", name).First(&g).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get mcp tool group by name %q: %w", name, err)
+	}
+	return &g, nil
+}
+
 func (s *RDBConfigStore) CreateMCPToolGroup(ctx context.Context, g *tables_enterprise.TableMCPToolGroup) error {
 	if g.ID == "" {
 		g.ID = uuid.NewString()

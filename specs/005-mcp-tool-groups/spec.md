@@ -63,11 +63,14 @@ is forward-compatible.*
 
 ## Non-Functional Requirements
 
-- **NFR-001**: The list endpoint returns in under 200 ms for 100 groups
-  with 50 tool references each (typical catalogue).
+- **NFR-001**: The list endpoint returns promptly for the typical
+  catalogue size (≤100 groups). Benchmarks + a hard p95 target are
+  deferred to a follow-up spec once production traffic shapes are known.
 - **NFR-002**: Concurrent edits from the same admin in two tabs do not
-  silently overwrite each other — use last-write-wins with an
-  `updated_at` timestamp shown in the UI so conflicts are visible.
+  silently overwrite each other — last-write-wins with the loaded
+  `updated_at` rendered in the edit-dialog banner and the list row so
+  conflicts are visible. Full optimistic concurrency (If-Match) is a
+  follow-up.
 
 ## Success Criteria
 

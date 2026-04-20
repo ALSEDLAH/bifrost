@@ -401,6 +401,7 @@ type ConfigStore interface {
 	// MCP Tool Groups (enterprise — spec 005)
 	ListMCPToolGroups(ctx context.Context) ([]tables_enterprise.TableMCPToolGroup, error)
 	GetMCPToolGroupByID(ctx context.Context, id string) (*tables_enterprise.TableMCPToolGroup, error)
+	GetMCPToolGroupByName(ctx context.Context, name string) (*tables_enterprise.TableMCPToolGroup, error)
 	CreateMCPToolGroup(ctx context.Context, group *tables_enterprise.TableMCPToolGroup) error
 	UpdateMCPToolGroup(ctx context.Context, group *tables_enterprise.TableMCPToolGroup) error
 	DeleteMCPToolGroup(ctx context.Context, id string) error
