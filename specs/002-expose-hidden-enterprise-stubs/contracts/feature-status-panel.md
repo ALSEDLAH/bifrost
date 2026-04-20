@@ -10,7 +10,7 @@ A shared React component that replaces `ContactUsView` **inside the enterprise b
 ## Public interface
 
 ```tsx
-import FeatureStatusPanel, { type FeatureStatusPanelProps } from "@/components/panels/featureStatusPanel";
+import FeatureStatusPanel, { type FeatureStatusPanelProps } from "@enterprise/components/panels/featureStatusPanel";
 
 // Example: alertChannelsView.tsx (descoped)
 export default function AlertChannelsView() {
