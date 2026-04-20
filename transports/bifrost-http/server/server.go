@@ -28,6 +28,7 @@ import (
 	"github.com/maximhq/bifrost/framework/tracing"
 	"github.com/maximhq/bifrost/plugins/audit"
 	"github.com/maximhq/bifrost/plugins/governance"
+	"github.com/maximhq/bifrost/plugins/guardrailsruntime"
 	"github.com/maximhq/bifrost/plugins/logging"
 	"github.com/maximhq/bifrost/plugins/prompts"
 	"github.com/maximhq/bifrost/plugins/semanticcache"
@@ -1175,9 +1176,29 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// SCIM admin config (spec 009). /scim/v2/* protocol endpoints are phase 2.
 	scimCfgHandler := handlers.NewSCIMConfigHandler(s.Config.ConfigStore, logger)
 	scimCfgHandler.RegisterRoutes(s.Router, middlewares...)
-	// Guardrails admin CRUD (spec 010). Runtime enforcement is phase 2.
+	// Guardrails admin CRUD (spec 010) + runtime enforcement (spec 016).
 	guardrailsHandler := handlers.NewGuardrailsHandler(s.Config.ConfigStore, logger)
 	guardrailsHandler.RegisterRoutes(s.Router, middlewares...)
+	// Spin up the enforcement plugin. Loads rules at init, consulted
+	// on every inference via PreLLMHook + PostLLMHook. Cache reloads
+	// on every admin CRUD so edits propagate immediately.
+	if guardrailsRuntime, err := guardrailsruntime.Init(ctx, s.Config.ConfigStore, s.Config.ConfigStore.DB(), logger); err == nil && guardrailsRuntime != nil {
+		guardrailsHandler.SetInvalidator(guardrailsRuntime.Invalidate)
+		// Register as a BasePlugin so PreLLMHook / PostLLMHook get
+		// driven by the core plugin pipeline. Placement: post-builtin,
+		// order=100 so it runs AFTER governance (which resolves routing)
+		// but still inside the core chain.
+		order := 100
+		placement := schemas.PluginPlacementPostBuiltin
+		s.Config.SetPluginOrderInfo(guardrailsruntime.PluginName, &placement, &order)
+		if regErr := s.Config.ReloadPlugin(guardrailsRuntime); regErr != nil {
+			logger.Warn("guardrails-runtime: plugin registration failed: %v", regErr)
+		} else {
+			s.Config.SortAndRebuildPlugins()
+		}
+	} else if err != nil {
+		logger.Warn("guardrails-runtime: init failed (%v) — inference unaffected, admin CRUD still works", err)
+	}
 	// Prompt deployments (spec 011 config + spec 014 runtime resolution).
 	productionDeploymentCache := configstore.NewProductionDeploymentCache(s.Config.ConfigStore)
 	promptDeploymentsHandler := handlers.NewPromptDeploymentsHandler(s.Config.ConfigStore, productionDeploymentCache, logger)
