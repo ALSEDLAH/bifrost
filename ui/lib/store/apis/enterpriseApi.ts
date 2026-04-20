@@ -1,97 +1,133 @@
-// RTK Query endpoints for enterprise Admin API.
+// Enterprise API extensions for RTK Query.
 //
-// Matches the contract at
-// specs/001-enterprise-parity/contracts/admin-api.openapi.yaml.
+// The primary org/workspace/VK management uses the existing governance
+// API hooks (useGetTeamsQuery, useGetCustomersQuery, etc.) from
+// governanceApi.ts. This file extends for enterprise-only endpoints
+// that don't exist in the governance handler (RBAC roles, users,
+// assignments, admin API keys, etc.).
 //
-// Cache tags:
-//   "EnterpriseOrganization" — GET /v1/admin/organizations/current
-//   "EnterpriseWorkspaces"   — GET /v1/admin/workspaces (list)
-//   { type: "EnterpriseWorkspaces", id }  — per-workspace cache
+// Cache tags are registered in baseApi.ts.
 
-import type {
-	CreateWorkspaceRequest,
-	EnterpriseOrganization,
-	EnterpriseWorkspace,
-	PatchWorkspaceRequest,
-	UpdateOrganizationRequest,
+import {
+	AssignRoleRequest,
+	AuditLogFilters,
+	CreateRoleRequest,
+	CreateUserRequest,
+	EnterpriseRole,
+	EnterpriseRoleAssignment,
+	EnterpriseUser,
+	GetAuditLogsResponse,
+	RbacMe,
+	RbacMeta,
+	UpdateRoleRequest,
+	UpdateUserRequest,
 } from "@/lib/types/enterprise";
 import { baseApi } from "./baseApi";
 
+function auditQueryParams(f: AuditLogFilters | void): Record<string, string | number> {
+	const p: Record<string, string | number> = {};
+	if (!f) return p;
+	if (f.actor_id) p.actor_id = f.actor_id;
+	if (f.action) p.action = f.action;
+	if (f.resource_type) p.resource_type = f.resource_type;
+	if (f.outcome) p.outcome = f.outcome;
+	if (f.from) p.from = f.from;
+	if (f.to) p.to = f.to;
+	if (f.organization_id) p.organization_id = f.organization_id;
+	if (f.limit !== undefined) p.limit = f.limit;
+	if (f.offset !== undefined) p.offset = f.offset;
+	return p;
+}
+
 export const enterpriseApi = baseApi.injectEndpoints({
 	endpoints: (builder) => ({
-		// ─── organizations ────────────────────────────────────────────
-		getCurrentOrganization: builder.query<EnterpriseOrganization, void>({
-			query: () => "/admin/organizations/current",
-			providesTags: ["EnterpriseOrganization"],
+		// ---- RBAC Meta / Me ----
+		getRbacMeta: builder.query<RbacMeta, void>({
+			query: () => "/rbac/meta",
+		}),
+		getRbacMe: builder.query<RbacMe, void>({
+			query: () => "/rbac/me",
+			providesTags: ["Permissions"],
 		}),
 
-		updateCurrentOrganization: builder.mutation<EnterpriseOrganization, UpdateOrganizationRequest>({
-			query: (body) => ({
-				url: "/admin/organizations/current",
-				method: "PATCH",
-				body,
-			}),
-			invalidatesTags: ["EnterpriseOrganization"],
+		// ---- Roles ----
+		getRoles: builder.query<{ roles: EnterpriseRole[]; total: number }, void>({
+			query: () => "/rbac/roles",
+			providesTags: ["Roles"],
+		}),
+		createRole: builder.mutation<{ role: EnterpriseRole }, CreateRoleRequest>({
+			query: (body) => ({ url: "/rbac/roles", method: "POST", body }),
+			invalidatesTags: ["Roles"],
+		}),
+		updateRole: builder.mutation<{ role: EnterpriseRole }, { id: string; data: UpdateRoleRequest }>({
+			query: ({ id, data }) => ({ url: `/rbac/roles/${id}`, method: "PATCH", body: data }),
+			invalidatesTags: ["Roles"],
+		}),
+		deleteRole: builder.mutation<{ deleted: boolean }, string>({
+			query: (id) => ({ url: `/rbac/roles/${id}`, method: "DELETE" }),
+			invalidatesTags: ["Roles"],
 		}),
 
-		// ─── workspaces ───────────────────────────────────────────────
-		getWorkspaces: builder.query<EnterpriseWorkspace[], void>({
-			query: () => "/admin/workspaces",
-			providesTags: (result) =>
-				result
-					? [
-							...result.map((w) => ({ type: "EnterpriseWorkspaces" as const, id: w.id })),
-							{ type: "EnterpriseWorkspaces" as const, id: "LIST" },
-						]
-					: [{ type: "EnterpriseWorkspaces" as const, id: "LIST" }],
+		// ---- Users ----
+		getEnterpriseUsers: builder.query<{ users: EnterpriseUser[]; total: number }, void>({
+			query: () => "/rbac/users",
+			providesTags: ["Users"],
+		}),
+		createEnterpriseUser: builder.mutation<{ user: EnterpriseUser }, CreateUserRequest>({
+			query: (body) => ({ url: "/rbac/users", method: "POST", body }),
+			invalidatesTags: ["Users"],
+		}),
+		updateEnterpriseUser: builder.mutation<{ user: EnterpriseUser }, { id: string; data: UpdateUserRequest }>({
+			query: ({ id, data }) => ({ url: `/rbac/users/${id}`, method: "PATCH", body: data }),
+			invalidatesTags: ["Users"],
+		}),
+		deleteEnterpriseUser: builder.mutation<{ deleted: boolean }, string>({
+			query: (id) => ({ url: `/rbac/users/${id}`, method: "DELETE" }),
+			invalidatesTags: ["Users"],
 		}),
 
-		getWorkspace: builder.query<EnterpriseWorkspace, string>({
-			query: (id) => `/admin/workspaces/${id}`,
-			providesTags: (result, error, id) => [{ type: "EnterpriseWorkspaces", id }],
+		// ---- Assignments ----
+		getUserAssignments: builder.query<{ assignments: EnterpriseRoleAssignment[]; total: number }, string>({
+			query: (userId) => `/rbac/users/${userId}/assignments`,
+			providesTags: (_r, _e, id) => [{ type: "Users", id: `${id}:assignments` }],
+		}),
+		assignRole: builder.mutation<{ assignment: EnterpriseRoleAssignment }, AssignRoleRequest>({
+			query: (body) => ({ url: "/rbac/assignments", method: "POST", body }),
+			invalidatesTags: ["Users"],
+		}),
+		unassignRole: builder.mutation<{ deleted: boolean }, string>({
+			query: (id) => ({ url: `/rbac/assignments/${id}`, method: "DELETE" }),
+			invalidatesTags: ["Users"],
 		}),
 
-		createWorkspace: builder.mutation<EnterpriseWorkspace, CreateWorkspaceRequest>({
-			query: (body) => ({
-				url: "/admin/workspaces",
-				method: "POST",
-				body,
-			}),
-			invalidatesTags: [{ type: "EnterpriseWorkspaces", id: "LIST" }],
-		}),
-
-		patchWorkspace: builder.mutation<EnterpriseWorkspace, { id: string; body: PatchWorkspaceRequest }>({
-			query: ({ id, body }) => ({
-				url: `/admin/workspaces/${id}`,
-				method: "PATCH",
-				body,
-			}),
-			invalidatesTags: (_res, _err, { id }) => [
-				{ type: "EnterpriseWorkspaces", id },
-				{ type: "EnterpriseWorkspaces", id: "LIST" },
-			],
-		}),
-
-		deleteWorkspace: builder.mutation<void, string>({
-			query: (id) => ({
-				url: `/admin/workspaces/${id}`,
-				method: "DELETE",
-			}),
-			invalidatesTags: (_res, _err, id) => [
-				{ type: "EnterpriseWorkspaces", id },
-				{ type: "EnterpriseWorkspaces", id: "LIST" },
-			],
+		// ---- Audit Logs (US4) ----
+		getAuditLogs: builder.query<GetAuditLogsResponse, AuditLogFilters | void>({
+			query: (filters) => ({ url: "/audit-logs", params: auditQueryParams(filters) }),
+			providesTags: ["AuditLogs"],
 		}),
 	}),
 	overrideExisting: false,
 });
 
+export function buildAuditExportUrl(format: "csv" | "json", filters?: AuditLogFilters): string {
+	const params = auditQueryParams(filters);
+	const query = new URLSearchParams({ format, ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
+	return `/api/audit-logs/export?${query.toString()}`;
+}
+
 export const {
-	useGetCurrentOrganizationQuery,
-	useUpdateCurrentOrganizationMutation,
-	useGetWorkspacesQuery,
-	useGetWorkspaceQuery,
-	useCreateWorkspaceMutation,
-	usePatchWorkspaceMutation,
-	useDeleteWorkspaceMutation,
+	useGetRbacMetaQuery,
+	useGetRbacMeQuery,
+	useGetRolesQuery,
+	useCreateRoleMutation,
+	useUpdateRoleMutation,
+	useDeleteRoleMutation,
+	useGetEnterpriseUsersQuery,
+	useCreateEnterpriseUserMutation,
+	useUpdateEnterpriseUserMutation,
+	useDeleteEnterpriseUserMutation,
+	useGetUserAssignmentsQuery,
+	useAssignRoleMutation,
+	useUnassignRoleMutation,
+	useGetAuditLogsQuery,
 } = enterpriseApi;

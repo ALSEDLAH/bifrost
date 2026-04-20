@@ -1,58 +1,127 @@
-// TypeScript types for the enterprise Admin API surface
-// (organizations + workspaces). Matches the OpenAPI contract at
-// specs/001-enterprise-parity/contracts/admin-api.openapi.yaml.
+// TypeScript types for enterprise-specific entities.
 //
-// Each enterprise feature train (A..E) adds its own section below.
+// Org/workspace management uses governance types (Customer, Team) from
+// the existing governance API. This file holds types for enterprise-only
+// entities that don't exist in the governance layer.
 
-// ─────────────────────────────────────────────────────────────────────
-// US1 — Organizations & Workspaces
-// ─────────────────────────────────────────────────────────────────────
+// ---- RBAC (US2) --------------------------------------------------
 
-export interface EnterpriseOrganization {
-	id: string;
-	name: string;
-	is_default: boolean;
-	sso_required: boolean;
-	break_glass_enabled: boolean;
-	default_retention_days: number;
-	data_residency_region: string;
-	created_at: string; // ISO 8601
-	// Convenience flag returned by GET /current — mirrors the
-	// deployment-mode default.
-	multi_org_enabled?: boolean;
-	updated_at?: string;
+export interface RbacMeta {
+	resources: string[];
+	operations: string[];
+	builtin_roles: string[];
 }
 
-export interface UpdateOrganizationRequest {
-	name?: string;
-	sso_required?: boolean;
-	break_glass_enabled?: boolean;
-	default_retention_days?: number;
+export interface RbacMe {
+	organization_id: string;
+	workspace_id?: string;
+	user_id?: string;
+	email?: string;
+	display_name?: string;
+	scopes: string[];
+	permissions: Record<string, string[]>;
 }
 
-export interface EnterpriseWorkspace {
+export type RoleScopeMap = Record<string, string[]>;
+
+export interface EnterpriseRole {
 	id: string;
 	organization_id: string;
 	name: string;
-	slug: string;
-	description?: string;
-	log_retention_days?: number | null;
-	metric_retention_days?: number | null;
-	payload_encryption_enabled: boolean;
+	scopes: RoleScopeMap | null;
+	is_builtin: boolean;
+	created_at: string;
+}
+
+export interface CreateRoleRequest {
+	name: string;
+	scopes: RoleScopeMap;
+}
+
+export interface UpdateRoleRequest {
+	name?: string;
+	scopes?: RoleScopeMap;
+}
+
+export type EnterpriseUserStatus = "active" | "suspended" | "pending";
+
+export interface EnterpriseRoleAssignment {
+	id: string;
+	user_id: string;
+	role_id: string;
+	workspace_id?: string;
+	assigned_at: string;
+	assigned_by?: string;
+}
+
+export interface EnterpriseUser {
+	id: string;
+	organization_id: string;
+	email: string;
+	display_name?: string;
+	status: EnterpriseUserStatus;
+	last_login_at?: string | null;
 	created_at: string;
 	updated_at: string;
+	assignments?: EnterpriseRoleAssignment[] | null;
 }
 
-export interface CreateWorkspaceRequest {
-	name: string;
-	slug: string;
-	description?: string;
+export interface CreateUserRequest {
+	email: string;
+	display_name?: string;
+	status?: EnterpriseUserStatus;
 }
 
-export interface PatchWorkspaceRequest {
-	name?: string;
-	description?: string;
-	log_retention_days?: number;
-	metric_retention_days?: number;
-	payload_encryption_enabled?: boolean;
+export interface UpdateUserRequest {
+	display_name?: string;
+	status?: EnterpriseUserStatus;
 }
+
+export interface AssignRoleRequest {
+	user_id: string;
+	role_id: string;
+	workspace_id?: string;
+}
+
+// ---- Audit Logs (US4) --------------------------------------------
+
+export type AuditOutcome = "allowed" | "denied" | "error";
+
+export interface AuditEntry {
+	id: string;
+	organization_id: string;
+	workspace_id?: string;
+	actor_type: string;
+	actor_id?: string;
+	actor_display: string;
+	actor_ip?: string;
+	action: string;
+	resource_type: string;
+	resource_id?: string;
+	outcome: AuditOutcome;
+	reason?: string;
+	before_json?: string;
+	after_json?: string;
+	request_id?: string;
+	created_at: string;
+}
+
+export interface AuditLogFilters {
+	actor_id?: string;
+	action?: string;
+	resource_type?: string;
+	outcome?: AuditOutcome;
+	from?: string;
+	to?: string;
+	organization_id?: string;
+	limit?: number;
+	offset?: number;
+}
+
+export interface GetAuditLogsResponse {
+	entries: AuditEntry[];
+	total: number;
+	limit: number;
+	offset: number;
+}
+
