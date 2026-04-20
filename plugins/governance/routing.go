@@ -43,10 +43,25 @@ type RoutingContext struct {
 	BudgetAndRateLimitStatus *BudgetAndRateLimitStatus          // Budget and rate limit status by provider/model
 }
 
+// HealthFn returns a weight multiplier in [0, 1] for a (provider, model)
+// pair. 1.0 healthy / unknown, smaller = down-weighted, 0.0 = skip.
+// Set via SetAdaptiveHealth on GovernancePlugin (spec 013).
+type HealthFn func(provider, model string) float64
+
 type RoutingEngine struct {
 	store         GovernanceStore
 	logger        schemas.Logger
 	chainMaxDepth *int // pointer to live config value; changes are reflected immediately
+	healthFn      HealthFn
+}
+
+// SetAdaptiveHealth installs a health-factor lookup. Nil disables
+// adaptive weighting (spec 013 FR-001).
+func (re *RoutingEngine) SetAdaptiveHealth(fn HealthFn) {
+	if re == nil {
+		return
+	}
+	re.healthFn = fn
 }
 
 // NewRoutingEngine creates a new RoutingEngine
@@ -175,7 +190,7 @@ func (re *RoutingEngine) EvaluateRoutingRules(ctx *schemas.BifrostContext, routi
 					continue
 				}
 
-				target, ok := selectWeightedTarget(rule.Targets)
+				target, ok := selectAdaptiveTarget(rule.Targets, re.healthFn, ctx, re.logger, rule.Name)
 				if !ok {
 					re.logger.Debug("[RoutingEngine] Rule %s matched but has no valid targets (empty list or all-negative weights), skipping — note: all-zero weights use uniform selection and would not reach here", rule.Name)
 					ctx.AppendRoutingEngineLog(schemas.RoutingEngineRoutingRule, fmt.Sprintf("Rule '%s' [%s] → matched but no valid targets (empty or all-negative weights), skipping", rule.Name, rule.CelExpression))

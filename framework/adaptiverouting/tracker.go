@@ -138,6 +138,31 @@ func (t *Tracker) Status() Status {
 	return out
 }
 
+// HealthFactor returns a weight multiplier in [0, 1] for the given
+// (provider, model) — 1.0 healthy / unknown, 0.1 half-open, 0.0 open.
+// Safe to call from hot paths: O(1) map lookup under a RLock.
+// Unknown keys return 1.0 (optimistic) so a fresh deployment does not
+// aggressively shed traffic before any samples arrive.
+func (t *Tracker) HealthFactor(provider, model string) float64 {
+	if t == nil {
+		return 1.0
+	}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	cb, ok := t.breakers[keyOf(provider, model)]
+	if !ok {
+		return 1.0
+	}
+	switch cb.State() {
+	case gobreaker.StateOpen:
+		return 0.0
+	case gobreaker.StateHalfOpen:
+		return 0.1
+	default:
+		return 1.0
+	}
+}
+
 func (t *Tracker) loop(ctx context.Context) {
 	// Do an immediate refresh so the first status call has data.
 	t.refresh(ctx)

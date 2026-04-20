@@ -1186,6 +1186,13 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	adaptiveTracker.Start(s.Ctx)
 	adaptiveHandler := handlers.NewAdaptiveRoutingHandler(adaptiveTracker)
 	adaptiveHandler.RegisterRoutes(s.Router, middlewares...)
+	// Adaptive routing phase 2 (spec 013) — feed the tracker's health
+	// lookup into the governance routing engine so circuit-open /
+	// half-open providers are automatically down-weighted at target
+	// selection time.
+	if gp, ok := governancePlugin.(*governance.GovernancePlugin); ok && gp != nil {
+		gp.SetAdaptiveHealth(adaptiveTracker.HealthFactor)
+	}
 	// Boot-time: seed in-process StreamingDecompressThreshold from the
 	// stored config so the first request after startup respects admin config.
 	if row, _ := s.Config.ConfigStore.GetLargePayloadConfig(context.Background()); row != nil && row.Enabled {

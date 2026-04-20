@@ -32,3 +32,14 @@ func (p *GovernancePlugin) SetBudgetThresholdAlertDispatcher(d *alertchannels.Di
 	}
 	p.tracker.SetAlertDispatcher(d, channelsFn)
 }
+
+// SetAdaptiveHealth installs the adaptive-routing health lookup onto
+// the internal routing engine so selectAdaptiveTarget can down-weight
+// unhealthy targets (spec 013). Safe to call on nil plugin or with
+// a nil fn (disables adaptive weighting).
+func (p *GovernancePlugin) SetAdaptiveHealth(fn HealthFn) {
+	if p == nil || p.engine == nil {
+		return
+	}
+	p.engine.SetAdaptiveHealth(fn)
+}
