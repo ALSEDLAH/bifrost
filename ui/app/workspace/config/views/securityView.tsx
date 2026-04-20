@@ -23,7 +23,9 @@ export default function SecurityView() {
 	const config = bifrostConfig?.client_config;
 	const [updateCoreConfig, { isLoading }] = useUpdateCoreConfigMutation();
 	const [localConfig, setLocalConfig] = useState<CoreConfig>(DefaultCoreConfig);
-	const hideAuthDashboard = IS_ENTERPRISE;
+	// Basic-auth admin credentials are the only working admin auth path today
+	// on both OSS and enterprise builds. SSO-replacement is a future spec.
+	const hideAuthDashboard = false;
 
 	const [localValues, setLocalValues] = useState<{
 		allowed_origins: string;
