@@ -14,15 +14,22 @@
 >   to upstream tables only when specific features require them; Team.Profile/
 >   Claims/Config JSON fields are the extension point
 > - Remaining enterprise-only tables: `ent_users`, `ent_roles`,
->   `ent_user_role_assignments`, `ent_system_defaults`, `ent_audit_entries`,
->   `ent_admin_api_keys` (and future feature-specific tables)
+>   `ent_user_role_assignments`, `ent_system_defaults`, `ent_audit_entries`.
+>   (Earlier drafts listed `ent_admin_api_keys`; that table was descoped
+>   2026-04-20 per SR-01 — upstream `auth_config` basic-auth already
+>   covers admin auth. Any future scoped-admin-key system needs its
+>   own feature spec.)
 
 All new tables live in existing framework stores:
 
 - **configstore** (SQLite or PostgreSQL via GORM): tenant data, auth,
-  policy, prompt library, configs, routing rules, KMS bindings.
+  policy, prompt library, configs, routing rules, KMS bindings, **and
+  audit entries** (`ent_audit_entries` co-located with the governance
+  + RBAC tables it references — per clarification 2026-04-20).
 - **logstore** (SQLite or PostgreSQL via GORM): request/response logs,
-  audit entries, guardrail events, alert events, executive rollups.
+  guardrail events, alert events, executive rollups. (The original
+  plan had audit entries here; they were moved to configstore for
+  single-DB operability — see Q4 in spec.md Clarifications.)
 
 Conventions:
 
