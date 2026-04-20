@@ -94,6 +94,13 @@ func getDefaultSink() *Plugin {
 	return defaultSink
 }
 
+// DefaultSink returns the process-default audit plugin instance or
+// nil if audit.Init hasn't run. Exposed so HTTP handlers can call
+// Verify() without being handed an explicit plugin reference.
+func DefaultSink() *Plugin {
+	return getDefaultSink()
+}
+
 // ErrNoSink is returned by Emit when no audit plugin has been
 // registered. In a correctly-configured enterprise deployment this is
 // a startup ordering bug (audit must Init before any other enterprise
@@ -143,6 +150,17 @@ func Emit(ctx context.Context, bctx *schemas.BifrostContext, e Entry) error {
 			row.AfterJSON = string(buf)
 		}
 	}
+
+	// Spec 015: stamp HMAC under the chain mutex so concurrent Emits
+	// can't both observe the same predecessor. When the chain is
+	// disabled (no key) the fields stay empty.
+	if sink.chain.Enabled() {
+		sink.seedChainFromDB()
+		sink.chain.mu.Lock()
+		row.HMAC, row.PrevHMAC = sink.chain.computeHMAC(row.CanonicalBytes())
+		sink.chain.mu.Unlock()
+	}
+
 	return sink.db.WithContext(ctx).Create(&row).Error
 }
 

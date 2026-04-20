@@ -12,26 +12,82 @@ import (
 	"github.com/fasthttp/router"
 	"github.com/maximhq/bifrost/core/schemas"
 	"github.com/maximhq/bifrost/framework/logstore"
+	"github.com/maximhq/bifrost/plugins/audit"
 	"github.com/maximhq/bifrost/transports/bifrost-http/lib"
 	"github.com/valyala/fasthttp"
 	"gorm.io/gorm"
 )
 
-// AuditLogsHandler serves /api/audit-logs.
-type AuditLogsHandler struct {
-	db     *gorm.DB
-	logger schemas.Logger
+// defaultAuditSink bridges the /api/audit-logs/verify handler to the
+// package-default audit plugin so we don't need init-order plumbing
+// (spec 015). Returns nil when audit.Init hasn't run.
+func defaultAuditSink() ChainVerifier {
+	p := audit.DefaultSink()
+	if p == nil {
+		return nil
+	}
+	return p
 }
 
-// NewAuditLogsHandler constructs the handler.
-func NewAuditLogsHandler(db *gorm.DB, logger schemas.Logger) *AuditLogsHandler {
-	return &AuditLogsHandler{db: db, logger: logger}
+// ChainVerifier reports HMAC chain integrity (spec 015). Plugin
+// instance implements it. Handler accepts nil (verify endpoint
+// reports "chain not configured").
+type ChainVerifier interface {
+	Verify(limit int) (entriesChecked int, firstBreakID, firstBreakReason string, err error)
+}
+
+// AuditLogsHandler serves /api/audit-logs.
+type AuditLogsHandler struct {
+	db       *gorm.DB
+	verifier ChainVerifier
+	logger   schemas.Logger
+}
+
+// NewAuditLogsHandler constructs the handler. verifier may be nil.
+func NewAuditLogsHandler(db *gorm.DB, verifier ChainVerifier, logger schemas.Logger) *AuditLogsHandler {
+	return &AuditLogsHandler{db: db, verifier: verifier, logger: logger}
 }
 
 // RegisterRoutes wires audit log endpoints.
 func (h *AuditLogsHandler) RegisterRoutes(r *router.Router, middlewares ...schemas.BifrostHTTPMiddleware) {
 	r.GET("/api/audit-logs", lib.ChainMiddlewares(h.handleList, middlewares...))
 	r.GET("/api/audit-logs/export", lib.ChainMiddlewares(h.handleExport, middlewares...))
+	r.GET("/api/audit-logs/verify", lib.ChainMiddlewares(h.handleVerify, middlewares...))
+}
+
+// handleVerify walks the HMAC chain and reports integrity (spec 015).
+// Resolves the plugin instance lazily so init-order doesn't matter.
+func (h *AuditLogsHandler) handleVerify(ctx *fasthttp.RequestCtx) {
+	verifier := h.verifier
+	if verifier == nil {
+		verifier = defaultAuditSink()
+	}
+	if verifier == nil {
+		SendJSON(ctx, map[string]any{
+			"valid":           false,
+			"entries_checked": 0,
+			"reason":          "audit plugin not initialized",
+		})
+		return
+	}
+	limit, _ := strconv.Atoi(string(ctx.QueryArgs().Peek("limit")))
+	checked, firstBreakID, reason, err := h.verifier.Verify(limit)
+	if err != nil {
+		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
+		return
+	}
+	resp := map[string]any{
+		"entries_checked": checked,
+		"valid":           firstBreakID == "",
+	}
+	if reason != "" {
+		resp["reason"] = reason
+	}
+	if firstBreakID != "" {
+		resp["first_break"] = map[string]string{"id": firstBreakID, "reason": reason}
+		resp["valid"] = false
+	}
+	SendJSON(ctx, resp)
 }
 
 func (h *AuditLogsHandler) handleList(ctx *fasthttp.RequestCtx) {

@@ -42,7 +42,7 @@ func setupAuditLogsHandler(t *testing.T) (*AuditLogsHandler, func(entry logstore
 	// configstore DB (mirrors what server.go does in production).
 	require.NoError(t, logstore.RegisterEnterpriseMigrations(context.Background(), store.DB()))
 
-	handler := NewAuditLogsHandler(store.DB(), &mockLogger{})
+	handler := NewAuditLogsHandler(store.DB(), nil, &mockLogger{})
 	seed := func(entry logstore.TableAuditEntry) {
 		if entry.ID == "" {
 			entry.ID = uuid.NewString()

@@ -40,6 +40,10 @@ type Plugin struct {
 	asyncWG   sync.WaitGroup
 	cancelFn  context.CancelFunc
 	startedAt time.Time
+
+	// chain holds the HMAC chain state (spec 015). Zero value is fine —
+	// Enabled() reports false when no key has been loaded.
+	chain chainState
 }
 
 // Config holds optional knobs read from config.enterprise.audit.
@@ -83,6 +87,17 @@ func Init(ctx context.Context, db *gorm.DB, logger schemas.Logger, cfg Config) (
 		cancelFn:  cancel,
 		startedAt: time.Now().UTC(),
 	}
+	// Load HMAC key (spec 015). Malformed key is fatal; missing key is
+	// fine — chain stays disabled.
+	key, keyErr := loadHMACKey()
+	if keyErr != nil {
+		return nil, keyErr
+	}
+	p.chain.key = key
+	if logger != nil && len(key) > 0 {
+		logger.Info("audit: HMAC chain enabled (spec 015)")
+	}
+
 	p.asyncWG.Add(1)
 	go p.runAsyncWorker(pluginCtx)
 
@@ -152,6 +167,17 @@ func (p *Plugin) runAsyncWorker(ctx context.Context) {
 	flush := func() {
 		if len(batch) == 0 {
 			return
+		}
+		// Spec 015: stamp the HMAC chain on each row in the batch
+		// under the chain mutex so concurrent Emit + async flush do
+		// not race for the same predecessor.
+		if p.chain.Enabled() {
+			p.seedChainFromDB()
+			p.chain.mu.Lock()
+			for i := range batch {
+				batch[i].HMAC, batch[i].PrevHMAC = p.chain.computeHMAC(batch[i].CanonicalBytes())
+			}
+			p.chain.mu.Unlock()
 		}
 		if err := p.db.WithContext(ctx).Create(&batch).Error; err != nil {
 			if p.logger != nil {

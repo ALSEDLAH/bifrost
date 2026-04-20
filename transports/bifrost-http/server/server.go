@@ -1150,7 +1150,7 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	}
 	// Audit log query handler (US4).
 	if s.Config.LogsStore != nil {
-		auditLogsHandler := handlers.NewAuditLogsHandler(s.Config.ConfigStore.DB(), logger)
+		auditLogsHandler := handlers.NewAuditLogsHandler(s.Config.ConfigStore.DB(), nil, logger)
 		auditLogsHandler.RegisterRoutes(s.Router, middlewares...)
 	}
 	// RBAC role/user/assignment handler (US2).
