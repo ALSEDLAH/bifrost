@@ -30,6 +30,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE004UsersAndRoles(ctx),
 		migrationE005AlertChannels(ctx),
 		migrationE006MCPToolGroups(ctx),
+		migrationE007LargePayloadConfig(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -241,6 +242,25 @@ func migrationE006MCPToolGroups(ctx context.Context) *migrator.Migration {
 		Rollback: func(tx *gorm.DB) error {
 			tx = tx.WithContext(ctx)
 			return tx.Migrator().DropTable(&tables_enterprise.TableMCPToolGroup{})
+		},
+	}
+}
+
+// migrationE007LargePayloadConfig creates the ent_large_payload_config
+// singleton table used by the admin settings UI (spec 006).
+func migrationE007LargePayloadConfig(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E007_large_payload_config",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TableLargePayloadConfig{}); err != nil {
+				return fmt.Errorf("auto-migrate large_payload_config: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TableLargePayloadConfig{})
 		},
 	}
 }

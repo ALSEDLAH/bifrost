@@ -405,6 +405,10 @@ type ConfigStore interface {
 	UpdateMCPToolGroup(ctx context.Context, group *tables_enterprise.TableMCPToolGroup) error
 	DeleteMCPToolGroup(ctx context.Context, id string) error
 
+	// Large Payload Config (enterprise — spec 006). Singleton.
+	GetLargePayloadConfig(ctx context.Context) (*tables_enterprise.TableLargePayloadConfig, error)
+	UpsertLargePayloadConfig(ctx context.Context, config *tables_enterprise.TableLargePayloadConfig) error
+
 	// DB returns the underlying database connection.
 	DB() *gorm.DB
 

@@ -1,6 +1,24 @@
-// Auto-generated enterprise stub: re-exports the OSS fallback.
-// Overwrite with a real implementation when the corresponding enterprise
-// feature ships. (Fork governance: keeps the vite alias happy when
-// ui/app/enterprise/ exists — every @enterprise path must resolve.)
+// Real enterprise API for /api/config/large-payload (spec 006).
+// Replaces the OSS-fallback stub that returned no-op hooks.
 
-export * from "../../../../_fallbacks/enterprise/lib/store/apis/largePayloadApi";
+import type { LargePayloadConfig } from "../../types/largePayload";
+import { baseApi } from "@/lib/store/apis/baseApi";
+
+export const largePayloadApi = baseApi.injectEndpoints({
+	endpoints: (builder) => ({
+		getLargePayloadConfig: builder.query<LargePayloadConfig, void>({
+			query: () => ({ url: "/config/large-payload" }),
+			providesTags: ["LargePayloadConfig"],
+		}),
+		updateLargePayloadConfig: builder.mutation<LargePayloadConfig, LargePayloadConfig>({
+			query: (body) => ({
+				url: "/config/large-payload",
+				method: "PUT",
+				body,
+			}),
+			invalidatesTags: ["LargePayloadConfig"],
+		}),
+	}),
+});
+
+export const { useGetLargePayloadConfigQuery, useUpdateLargePayloadConfigMutation } = largePayloadApi;

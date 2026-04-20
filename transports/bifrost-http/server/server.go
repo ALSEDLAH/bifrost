@@ -1162,6 +1162,14 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// MCP Tool Groups CRUD (spec 005).
 	mcpToolGroupsHandler := handlers.NewMCPToolGroupsHandler(s.Config.ConfigStore, logger)
 	mcpToolGroupsHandler.RegisterRoutes(s.Router, middlewares...)
+	// Large payload config singleton (spec 006).
+	largePayloadCfgHandler := handlers.NewLargePayloadConfigHandler(s.Config.ConfigStore, s.Config, logger)
+	largePayloadCfgHandler.RegisterRoutes(s.Router, middlewares...)
+	// Boot-time: seed in-process StreamingDecompressThreshold from the
+	// stored config so the first request after startup respects admin config.
+	if row, _ := s.Config.ConfigStore.GetLargePayloadConfig(context.Background()); row != nil && row.Enabled {
+		s.Config.StreamingDecompressThreshold = row.RequestThresholdBytes
+	}
 	if gp, ok := governancePlugin.(*governance.GovernancePlugin); ok && gp != nil {
 		gp.SetBudgetThresholdAlertDispatcher(alertDispatcher, func() []tables_enterprise.TableAlertChannel {
 			list, err := s.Config.ConfigStore.ListAlertChannels(context.Background())
