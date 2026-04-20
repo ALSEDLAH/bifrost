@@ -32,6 +32,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE006MCPToolGroups(ctx),
 		migrationE007LargePayloadConfig(ctx),
 		migrationE008LogExportConnectors(ctx),
+		migrationE009SCIMConfig(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -281,6 +282,25 @@ func migrationE008LogExportConnectors(ctx context.Context) *migrator.Migration {
 		Rollback: func(tx *gorm.DB) error {
 			tx = tx.WithContext(ctx)
 			return tx.Migrator().DropTable(&tables_enterprise.TableLogExportConnector{})
+		},
+	}
+}
+
+// migrationE009SCIMConfig creates ent_scim_config — singleton row
+// holding the SCIM bearer-token hash + enabled flag (spec 009).
+func migrationE009SCIMConfig(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E009_scim_config",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TableSCIMConfig{}); err != nil {
+				return fmt.Errorf("auto-migrate scim_config: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TableSCIMConfig{})
 		},
 	}
 }

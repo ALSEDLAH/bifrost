@@ -17,3 +17,4 @@ export * from "./alertChannelsApi";
 export * from "./mcpToolGroupsApi";
 export * from "./clusterApi";
 export * from "./logExportConnectorsApi";
+export * from "./scimConfigApi";

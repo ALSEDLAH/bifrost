@@ -167,6 +167,7 @@ export const baseApi = createApi({
 		"BusinessUnits",
 		"LogExportConnectors",
 		"PromptDeployments",
+		"SCIMConfig",
 		// Enterprise parity — US1 Orgs & Workspaces.
 		"EnterpriseOrganization",
 		"EnterpriseWorkspaces",

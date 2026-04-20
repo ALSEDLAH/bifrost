@@ -416,6 +416,10 @@ type ConfigStore interface {
 	UpdateLogExportConnector(ctx context.Context, connector *tables_enterprise.TableLogExportConnector) error
 	DeleteLogExportConnector(ctx context.Context, id string) error
 
+	// SCIM Config (enterprise — spec 009). Singleton.
+	GetSCIMConfig(ctx context.Context) (*tables_enterprise.TableSCIMConfig, error)
+	UpsertSCIMConfig(ctx context.Context, config *tables_enterprise.TableSCIMConfig) error
+
 	// DB returns the underlying database connection.
 	DB() *gorm.DB
 
