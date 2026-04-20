@@ -163,6 +163,7 @@ export const baseApi = createApi({
 		"Versions",
 		"Sessions",
 		"AccessProfiles",
+		"AlertChannels",
 		"BusinessUnits",
 		"PromptDeployments",
 		// Enterprise parity — US1 Orgs & Workspaces.

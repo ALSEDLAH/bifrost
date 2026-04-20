@@ -26,6 +26,7 @@ export enum RbacResource {
 	PromptRepository = "PromptRepository",
 	PromptDeploymentStrategy = "PromptDeploymentStrategy",
 	AccessProfiles = "AccessProfiles",
+	AlertChannels = "AlertChannels",
 }
 
 // RBAC Operation Names (must match backend definitions)

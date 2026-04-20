@@ -8,6 +8,7 @@ import (
 
 	"github.com/maximhq/bifrost/core/schemas"
 	"github.com/maximhq/bifrost/framework/configstore/tables"
+	tables_enterprise "github.com/maximhq/bifrost/framework/configstore/tables-enterprise"
 	"github.com/maximhq/bifrost/framework/logstore"
 	"github.com/maximhq/bifrost/framework/migrator"
 	"github.com/maximhq/bifrost/framework/vectorstore"
@@ -389,6 +390,13 @@ type ConfigStore interface {
 	UpdatePromptSession(ctx context.Context, session *tables.TablePromptSession) error
 	RenamePromptSession(ctx context.Context, id uint, name string) error
 	DeletePromptSession(ctx context.Context, id uint) error
+
+	// Alert Channels (enterprise — spec 004)
+	ListAlertChannels(ctx context.Context) ([]tables_enterprise.TableAlertChannel, error)
+	GetAlertChannelByID(ctx context.Context, id string) (*tables_enterprise.TableAlertChannel, error)
+	CreateAlertChannel(ctx context.Context, channel *tables_enterprise.TableAlertChannel) error
+	UpdateAlertChannel(ctx context.Context, channel *tables_enterprise.TableAlertChannel) error
+	DeleteAlertChannel(ctx context.Context, id string) error
 
 	// DB returns the underlying database connection.
 	DB() *gorm.DB
