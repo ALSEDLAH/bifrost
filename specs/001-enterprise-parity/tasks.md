@@ -201,14 +201,14 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 ---
 
-## Phase 12: User Stories 12+13 — Dashboard + Retention (Priority: P3)
+## Phase 12: US13 Retention (already upstream) + US12 Dashboard (DESCOPED)
 
-**Goal**: Fill executive dashboard stub; add retention policy support.
+**Status (2026-04-20 per SR-01):** T067 confirmed already-shipped upstream (no code change). T066 descoped — no user-rankings endpoint to expose.
 
 - [~] T066 [US12] DESCOPED 2026-04-20 — was: exec dashboard with top users. UI types (`UserRankingEntry`, `UserRankingsResponse` in `lib/types/logs.ts`) are forward-declared but no backend endpoint (`/api/logs/user-rankings`) exists and no existing aggregation provides per-user requests/tokens/cost. Model rankings (`/api/logs/rankings`) exist but that's a different dimension. Per SR-01, user rankings needs its own spec before implementation. Fallback ContactUsView stays.
 - [X] T067 [US13] Retention policy — already upstream. `TableClientConfig.LogRetentionDays` (framework/configstore/tables/clientconfig.go:22, default 365) is migrated via `migrationAddLogRetentionDaysColumn` and already surfaced at `/workspace/config/logging` via `loggingView.tsx` as "Log retention days" (min=1). No code change required; this is pure expose-existing that already shipped.
 
-**Checkpoint**: US12 + US13 complete.
+**Checkpoint**: US13 retention functional upstream; US12 dashboard revisited in a future spec.
 
 ---
 
@@ -287,6 +287,8 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 ---
 
 ## Phase 19: Polish & Cross-Cutting Concerns
+
+**Status (2026-04-20):** T094–T097 DONE (schema / docs / changelogs / SC-020 CI). T098 + T099 DEFERRED — each needs a dedicated harness (perf via k6/vegeta against a containerized Bifrost; security-scan via grep of built binaries + fixture log output for known-seed secrets). Harness design is itself a small spec; do not bundle into the enterprise-parity spec.
 
 - [~] T094 [P] DEFERRED 2026-04-20 — `transports/config.schema.enterprise.json` already carries the in-scope enterprise surface (deployment modes, audit, orgs/workspaces anchors); my US2/US4/US30 work added no new config fields (all reuse). If/when a descoped story is revived, its spec will re-open this task.
 - [X] T095 [P] Update MDX docs — `docs/enterprise/rbac.mdx` rewritten to match the 24×6 scope model, built-in roles, and the real `/api/rbac/*` endpoints; `docs/enterprise/audit-logs.mdx` trimmed of descoped features (SIEM, webhooks, HMAC verification, compliance reports) and rewritten to the `/api/audit-logs{,/export}` surface that actually ships.
