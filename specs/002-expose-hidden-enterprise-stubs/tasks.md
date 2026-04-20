@@ -59,8 +59,8 @@ description: "Task list for Expose Hidden Enterprise Stubs — eliminate 'Contac
 
 ### 4a. Reuse wins (3 tasks, sequential per-file)
 
-- [ ] T005 [US2] Fill `ui/app/enterprise/components/access-profiles/accessProfilesIndexView.tsx` — render a roles table framed as "Access profiles". Reuse `useGetRolesQuery` from `ui/lib/store/apis/enterpriseApi.ts`. Columns: Name, Type (Built-in / Custom), Scope count, Top resources. No write UI (directs to RBAC page for edits — matches the "access profiles == roles" decision from spec 001).
-- [ ] T006 [US2] Fill `ui/app/enterprise/components/adaptive-routing/adaptiveRoutingView.tsx` — render an editor over `/api/governance/routing-rules` using the existing `routingRulesApi.ts` hooks. Present weighted-target routing with a canary lens (weight sliders, target picker). Reuse the existing rule editor UX pattern from `ui/app/workspace/routing-rules/` where feasible.
+- [X] T005 [US2] Fill `ui/app/enterprise/components/access-profiles/accessProfilesIndexView.tsx` — render a roles table framed as "Access profiles". Reuse `useGetRolesQuery` from `ui/lib/store/apis/enterpriseApi.ts`. Columns: Name, Type (Built-in / Custom), Scope count, Top resources. No write UI (directs to RBAC page for edits — matches the "access profiles == roles" decision from spec 001).
+- [X] T006 [US2] Fill `ui/app/enterprise/components/adaptive-routing/adaptiveRoutingView.tsx` — render an editor over `/api/governance/routing-rules` using the existing `routingRulesApi.ts` hooks. Present weighted-target routing with a canary lens (weight sliders, target picker). Reuse the existing rule editor UX pattern from `ui/app/workspace/routing-rules/` where feasible.
 - [X] T007 [US2] Trim the trailing ContactUsView block from `ui/app/_fallbacks/enterprise/components/api-keys/apiKeysIndexView.tsx` — preserve the basic-auth curl example and alert; remove only the "Scope Based API Keys" teaser section. Enterprise stub inherits the cleanup automatically.
 
 ### 4b. Panel replacements (17 tasks, all [P] — different files)
