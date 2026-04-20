@@ -205,8 +205,8 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Goal**: Fill executive dashboard stub; add retention policy support.
 
-- [ ] T066 [US12] Fill `ui/app/enterprise/components/user-rankings/userRankingsTab.tsx` — executive dashboard with org-level metrics (top users, cost breakdown)
-- [ ] T067 [US13] Add retention policy configuration to workspace settings — per-workspace log/metric retention periods
+- [~] T066 [US12] DESCOPED 2026-04-20 — was: exec dashboard with top users. UI types (`UserRankingEntry`, `UserRankingsResponse` in `lib/types/logs.ts`) are forward-declared but no backend endpoint (`/api/logs/user-rankings`) exists and no existing aggregation provides per-user requests/tokens/cost. Model rankings (`/api/logs/rankings`) exist but that's a different dimension. Per SR-01, user rankings needs its own spec before implementation. Fallback ContactUsView stays.
+- [X] T067 [US13] Retention policy — already upstream. `TableClientConfig.LogRetentionDays` (framework/configstore/tables/clientconfig.go:22, default 365) is migrated via `migrationAddLogRetentionDaysColumn` and already surfaced at `/workspace/config/logging` via `loggingView.tsx` as "Log retention days" (min=1). No code change required; this is pure expose-existing that already shipped.
 
 **Checkpoint**: US12 + US13 complete.
 
