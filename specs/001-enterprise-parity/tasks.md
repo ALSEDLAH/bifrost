@@ -130,12 +130,12 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Independent Test**: Configure org-wide prompt-injection guardrail; send injection from two workspaces; both blocked with HTTP 446.
 
-- [ ] T044 [US6] Create `plugins/guardrails-central/` plugin with `go.mod` — org-wide guardrail engine
-- [ ] T045 [US6] Add guardrails handler at `transports/bifrost-http/handlers/guardrails_central.go` — CRUD for guardrail policies
-- [ ] T046 [P] [US6] Add RTK Query hooks for guardrails in `ui/lib/store/apis/enterpriseApi.ts`
-- [ ] T047 [P] [US6] Fill `ui/app/enterprise/components/guardrails/guardrailsConfigurationView.tsx` — guardrail config UI
-- [ ] T048 [P] [US6] Fill `ui/app/enterprise/components/guardrails/guardrailsProviderView.tsx` — guardrail provider management UI
-- [ ] T049 [US6] Playwright E2E: `ui/tests/e2e/enterprise/guardrails.spec.ts`
+- [~] T044 [US6] Create `plugins/guardrails-central/` plugin with `go.mod` — org-wide guardrail engine  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T045 [US6] Add guardrails handler at `transports/bifrost-http/handlers/guardrails_central.go` — CRUD for guardrail policies  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T046 [P] [US6] Add RTK Query hooks for guardrails in `ui/lib/store/apis/enterpriseApi.ts`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T047 [P] [US6] Fill `ui/app/enterprise/components/guardrails/guardrailsConfigurationView.tsx` — guardrail config UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T048 [P] [US6] Fill `ui/app/enterprise/components/guardrails/guardrailsProviderView.tsx` — guardrail provider management UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T049 [US6] Playwright E2E: `ui/tests/e2e/enterprise/guardrails.spec.ts`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US6 stubs filled. Central guardrails enforceable org-wide.
 
@@ -147,11 +147,11 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Independent Test**: Enable PII redaction; send request with SSN; verify log entry contains `<REDACTED:SSN>`.
 
-- [ ] T050 [US7] Create `plugins/pii-redactor/` plugin with `go.mod` — PII detection + redaction engine
-- [ ] T051 [P] [US7] Add RTK Query hooks for PII redaction in `ui/lib/store/apis/enterpriseApi.ts`
-- [ ] T052 [P] [US7] Fill `ui/app/enterprise/components/pii-redactor/piiRedactorRulesView.tsx` — PII rules config UI
-- [ ] T053 [P] [US7] Fill `ui/app/enterprise/components/pii-redactor/piiRedactorProviderView.tsx` — PII provider management UI
-- [ ] T054 [US7] Playwright E2E: `ui/tests/e2e/enterprise/pii-redactor.spec.ts`
+- [~] T050 [US7] Create `plugins/pii-redactor/` plugin with `go.mod` — PII detection + redaction engine  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T051 [P] [US7] Add RTK Query hooks for PII redaction in `ui/lib/store/apis/enterpriseApi.ts`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T052 [P] [US7] Fill `ui/app/enterprise/components/pii-redactor/piiRedactorRulesView.tsx` — PII rules config UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T053 [P] [US7] Fill `ui/app/enterprise/components/pii-redactor/piiRedactorProviderView.tsx` — PII provider management UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T054 [US7] Playwright E2E: `ui/tests/e2e/enterprise/pii-redactor.spec.ts`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US7 stubs filled.
 
@@ -164,7 +164,7 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 **Independent Test**: Set $100 budget; generate $50 spend; verify 50% alert fires.
 
 - [X] T055 [US8] Threshold-alert emission at 50/75/90% of budget — sibling-file extension (`plugins/governance/tracker_thresholds.go` + `main_thresholds.go`) with a 1-line hook in upstream `tracker.go` and 1-line wiring in `server.go`. Emits via `logger.Warn` + opt-in `schemas.EventBroadcaster` (WebSocket push). UI: `useBudgetThresholdAlerts` hook mounted in `clientLayout.tsx` shows a sonner toast on each crossing. Slack/webhook destinations remain descoped (US10). FR-022 "configurable" partially met — defaults-only in v1, per-budget thresholds need a follow-up.
-- [ ] T056 [US9] Add webhook guardrail type to `plugins/guardrails-central/` — HMAC signing, timeout, fail-open/fail-closed
+- [~] T056 [US9] Add webhook guardrail type to `plugins/guardrails-central/` — HMAC signing, timeout, fail-open/fail-closed  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US8 + US9 complete. Budget alerts and custom guardrail webhooks functional.
 
@@ -176,10 +176,10 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Independent Test**: Configure alert rule for error-rate > 5%; trigger; verify Slack notification.
 
-- [ ] T057 [US10] Create `plugins/alerts/` plugin with `go.mod` — threshold-based alert engine with webhook/Slack destinations
-- [ ] T058 [P] [US10] Add RTK Query hooks for alert channels in `ui/lib/store/apis/enterpriseApi.ts`
-- [ ] T059 [US10] Fill `ui/app/enterprise/components/alert-channels/alertChannelsView.tsx` — alert rule + destination management UI
-- [ ] T060 [US10] Playwright E2E: `ui/tests/e2e/enterprise/alert-channels.spec.ts`
+- [~] T057 [US10] Create `plugins/alerts/` plugin with `go.mod` — threshold-based alert engine with webhook/Slack destinations  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T058 [P] [US10] Add RTK Query hooks for alert channels in `ui/lib/store/apis/enterpriseApi.ts`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T059 [US10] Fill `ui/app/enterprise/components/alert-channels/alertChannelsView.tsx` — alert rule + destination management UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T060 [US10] Playwright E2E: `ui/tests/e2e/enterprise/alert-channels.spec.ts`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US10 stub filled.
 
@@ -191,11 +191,11 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Independent Test**: Configure S3 export; generate 100 requests; verify S3 bucket receives records.
 
-- [ ] T061 [US11] Create `plugins/logexport/` plugin with `go.mod` — export framework with S3/Blob/GCS/MongoDB/OTLP sinks
-- [ ] T062 [P] [US11] Add RTK Query hooks for log export in `ui/lib/store/apis/enterpriseApi.ts`
-- [ ] T063 [P] [US11] Fill `ui/app/enterprise/components/data-connectors/datadog/datadogConnectorView.tsx` — Datadog export config UI
-- [ ] T064 [P] [US11] Fill `ui/app/enterprise/components/data-connectors/bigquery/bigqueryConnectorView.tsx` — BigQuery export config UI
-- [ ] T065 [US11] Playwright E2E: `ui/tests/e2e/enterprise/log-export.spec.ts`
+- [~] T061 [US11] Create `plugins/logexport/` plugin with `go.mod` — export framework with S3/Blob/GCS/MongoDB/OTLP sinks  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T062 [P] [US11] Add RTK Query hooks for log export in `ui/lib/store/apis/enterpriseApi.ts`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T063 [P] [US11] Fill `ui/app/enterprise/components/data-connectors/datadog/datadogConnectorView.tsx` — Datadog export config UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T064 [P] [US11] Fill `ui/app/enterprise/components/data-connectors/bigquery/bigqueryConnectorView.tsx` — BigQuery export config UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T065 [US11] Playwright E2E: `ui/tests/e2e/enterprise/log-export.spec.ts`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US11 stubs filled.
 
@@ -216,11 +216,11 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Goal**: Fill prompt deployment stubs; add playground; add config objects.
 
-- [ ] T068 [US14] Extend `plugins/prompts/` for deployment strategies (A/B split, canary, production version)
-- [ ] T069 [P] [US14] Fill `ui/app/enterprise/components/prompt-deployments/promptDeploymentView.tsx` — deployment strategy editor UI
-- [ ] T070 [P] [US14] Fill `ui/app/enterprise/components/prompt-deployments/promptDeploymentsAccordionItem.tsx` — accordion display component
-- [ ] T071 [US15] Add prompt playground handler + UI page — N-model parallel execution with comparison
-- [ ] T072 [US16] Add Config object handler at `transports/bifrost-http/handlers/configs.go` — versioned declarative routing configs
+- [~] T068 [US14] Extend `plugins/prompts/` for deployment strategies (A/B split, canary, production version)  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T069 [P] [US14] Fill `ui/app/enterprise/components/prompt-deployments/promptDeploymentView.tsx` — deployment strategy editor UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T070 [P] [US14] Fill `ui/app/enterprise/components/prompt-deployments/promptDeploymentsAccordionItem.tsx` — accordion display component  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T071 [US15] Add prompt playground handler + UI page — N-model parallel execution with comparison  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T072 [US16] Add Config object handler at `transports/bifrost-http/handlers/configs.go` — versioned declarative routing configs  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US14-16 complete.
 
@@ -228,7 +228,7 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 ## Phase 14: User Story 17 — Service Account Keys (Priority: P4)
 
-- [ ] T073 [US17] Create `ent_service_account_keys` table + handler — workspace-scoped non-user credentials with budget/rate-limit
+- [~] T073 [US17] Create `ent_service_account_keys` table + handler — workspace-scoped non-user credentials with budget/rate-limit  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US17 complete.
 
@@ -251,12 +251,12 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Goal**: Fill SSO login, cluster, and SCIM stubs.
 
-- [ ] T078 [US3] Add SSO handler at `transports/bifrost-http/handlers/sso.go` — SAML 2.0 + OIDC discovery, callbacks, user auto-provisioning
-- [ ] T079 [US3] Fill `ui/app/enterprise/components/login/loginView.tsx` — enterprise SSO login page
-- [ ] T080 [US19] Fill `ui/app/enterprise/components/cluster/clusterView.tsx` — cluster node management UI
-- [ ] T081 [P] [US19] Create air-gapped Helm profile at `helm-charts/bifrost/values-airgapped.yaml`
-- [ ] T082 [US20] Add SCIM handler at `transports/bifrost-http/handlers/scim.go` — RFC 7644 Users/Groups/Schemas endpoints
-- [ ] T083 [US20] Fill `ui/app/enterprise/components/scim/scimView.tsx` — SCIM config UI (bearer token + enable toggle)
+- [~] T078 [US3] Add SSO handler at `transports/bifrost-http/handlers/sso.go` — SAML 2.0 + OIDC discovery, callbacks, user auto-provisioning  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T079 [US3] Fill `ui/app/enterprise/components/login/loginView.tsx` — enterprise SSO login page  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T080 [US19] Fill `ui/app/enterprise/components/cluster/clusterView.tsx` — cluster node management UI  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T081 [P] [US19] Create air-gapped Helm profile at `helm-charts/bifrost/values-airgapped.yaml`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T082 [US20] Add SCIM handler at `transports/bifrost-http/handlers/scim.go` — RFC 7644 Users/Groups/Schemas endpoints  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T083 [US20] Fill `ui/app/enterprise/components/scim/scimView.tsx` — SCIM config UI (bearer token + enable toggle)  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US3, US19, US20 stubs filled.
 
@@ -264,10 +264,10 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 ## Phase 17: User Stories 18, 21, 22, 23 — BYOK + Terraform + Canary + ETL (Priority: P5-P6)
 
-- [ ] T084 [US18] Create `framework/kms/` with AWS KMS, Azure Key Vault, GCP KMS adapters
-- [ ] T085 [US21] Scaffold Terraform provider at `terraform/providers/bifrost/` — workspace, VK, config, guardrail resources
-- [ ] T086 [US22] Add canary routing primitive to Config object + fill `ui/app/enterprise/components/adaptive-routing/adaptiveRoutingView.tsx`
-- [ ] T087 [US23] Add data lake ETL export to `plugins/logexport/` — curated schema + BigQuery/S3 sink
+- [~] T084 [US18] Create `framework/kms/` with AWS KMS, Azure Key Vault, GCP KMS adapters  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T085 [US21] Scaffold Terraform provider at `terraform/providers/bifrost/` — workspace, VK, config, guardrail resources  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T086 [US22] Add canary routing primitive to Config object + fill `ui/app/enterprise/components/adaptive-routing/adaptiveRoutingView.tsx`  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T087 [US23] Add data lake ETL export to `plugins/logexport/` — curated schema + BigQuery/S3 sink  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: US18, US21, US22, US23 complete. All 26 stubs filled (SC-020 ✅).
 
@@ -275,12 +275,12 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 ## Phase 18: User Stories 24-29 — License + Cloud Commercial (Train E)
 
-- [ ] T088 [US24] Implement license JWT verification in `plugins/license/` — offline Ed25519 signature check, entitlement parsing
-- [ ] T089 [US25] Add license expiry state machine — 30/7/1 day warnings, 14-day grace period, graceful degradation
-- [ ] T090 [US26] Create metering plugin — per-org request/token/cost counters with daily/monthly rollups
-- [ ] T091 [US27] Integrate Stripe — subscription management + Metered Billing API + webhook handler
-- [ ] T092 [US28] Build billing portal UI page — usage, invoices, payment method
-- [ ] T093 [US29] Implement tier enforcement — Dev/Prod/Enterprise feature matrix
+- [~] T088 [US24] Implement license JWT verification in `plugins/license/` — offline Ed25519 signature check, entitlement parsing  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T089 [US25] Add license expiry state machine — 30/7/1 day warnings, 14-day grace period, graceful degradation  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T090 [US26] Create metering plugin — per-org request/token/cost counters with daily/monthly rollups  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T091 [US27] Integrate Stripe — subscription management + Metered Billing API + webhook handler  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T092 [US28] Build billing portal UI page — usage, invoices, payment method  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
+- [~] T093 [US29] Implement tier enforcement — Dev/Prod/Enterprise feature matrix  *(DESCOPED 2026-04-20 per SR-01 — needs its own feature spec)*
 
 **Checkpoint**: Train E complete.
 

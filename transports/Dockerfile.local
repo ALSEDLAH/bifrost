@@ -17,7 +17,7 @@
   # Skip the copy-build step since we'll copy the files in the Go build stage
 
   # --- Go Build Stage: Compile the Go binary using local modules ---
-  FROM golang:1.26.1-alpine3.23@sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039 AS builder
+  FROM golang:1.26-alpine AS builder
   WORKDIR /build
 
   # Install dependencies including gcc for CGO and sqlite
@@ -36,6 +36,7 @@
   RUN go work init && \
     go work use ./core && \
     go work use ./framework && \
+    go work use ./plugins/audit && \
     go work use ./plugins/compat && \
     go work use ./plugins/governance && \
     go work use ./plugins/jsonparser && \
@@ -48,8 +49,9 @@
     go work use ./plugins/telemetry && \
     go work use ./transports
 
-  # Download external (non-local) dependencies
-  RUN cd /build/transports && go mod download
+  # Download dependencies — go build will fetch what's needed via the workspace.
+  # We pre-download the external (non-local) deps from the workspace root.
+  RUN cd /build && go mod download -x 2>&1 | tail -5 || true
 
   # Copy UI build output into transports
   COPY --from=ui-builder /app/out ./transports/bifrost-http/ui

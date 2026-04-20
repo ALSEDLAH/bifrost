@@ -65,9 +65,9 @@
 
 **Phase-level consequence (tasks.md alignment):**
 
-- **Phase 3 (US1), Phase 4 (US2), Phase 5 (US4), Phase 12 (US30)** — in scope; exposing existing logic.
+- **Phase 3 (US1), Phase 4 (US2), Phase 5 (US4), Phase 12 (US12/US13), Phase 15 (US30)** — in scope; exposing existing logic.
 - **Phase 6 (US5)** — DESCOPED; fallback stub remains.
-- **Phase 7 (US6), Phase 8 (US7), Phase 9 (US8/US9), Phase 10 (US10), Phase 11 (US11)** — net-new plugins; require their own feature spec before implementation starts.
+- **Phase 7 (US6), Phase 8 (US7), Phase 9 (US8 done / US9 descoped), Phase 10 (US10), Phase 11 (US11)** — US8 in scope (already-shipped governance tracker extended in-place); everything else net-new and requires its own feature spec before implementation starts.
 - **Phase 13 (US14–US16), Phase 14 (US17), Phase 16 (US3/US19/US20), Phase 17 (US18/US21–US23), Phase 18 (US24–US29)** — net-new; require their own specs.
 
 **How to apply to a user story or phase:**
@@ -1248,17 +1248,17 @@ available, and a confirmation email is sent.
   PromptDeploymentStrategy, AccessProfiles, BusinessUnits,
   AlertChannels, SCIMConfig, MCPToolGroups, MCPAuthConfig) with 6
   operations (Read, View, Create, Update, Delete, Download).
-- **FR-005**: System MUST support SSO via SAML 2.0 and OIDC with at
+- **FR-005** *(DESCOPED 2026-04-20 per SR-01 — US3 net-new; needs own spec)*: System MUST support SSO via SAML 2.0 and OIDC with at
   minimum Okta, Azure AD / Entra ID, Google Workspace, and generic
   OIDC compliance.
-- **FR-006**: System MUST auto-provision users on first SSO login and
+- **FR-006** *(DESCOPED 2026-04-20 per SR-01 — US3)*: System MUST auto-provision users on first SSO login and
   auto-accept pending invitations matching the authenticated email.
-- **FR-007**: System MUST support SCIM 2.0 for user lifecycle
+- **FR-007** *(DESCOPED 2026-04-20 per SR-01 — US20 SCIM net-new; needs own spec)*: System MUST support SCIM 2.0 for user lifecycle
   management from external IdPs.
-- **FR-008**: System MUST support org-level Admin API Keys with per-
+- **FR-008** *(DESCOPED 2026-04-20 per SR-01 — US5; upstream `auth_config` basic-auth already covers admin auth)*: System MUST support org-level Admin API Keys with per-
   key scopes, creator tracking, expiration, and one-time display at
   creation.
-- **FR-009**: System MUST support service-account API Keys scoped to
+- **FR-009** *(DESCOPED 2026-04-20 per SR-01 — US17 net-new; needs own spec)*: System MUST support service-account API Keys scoped to
   a single workspace with their own budgets, rate limits, and no UI
   login capability.
 
@@ -1275,7 +1275,7 @@ available, and a confirmation email is sent.
   least as long as the longest configured retention policy, and in
   no case less than 1 year when audit logging is enabled.
 
-**Guardrails:**
+**Guardrails** *(FR-013..FR-018 DESCOPED 2026-04-20 per SR-01 — US6/US9 net-new `plugins/guardrails-central/`; needs own spec)*:
 
 - **FR-013**: System MUST support organization-scoped guardrails
   applied before workspace-scoped and per-key guardrails.
@@ -1294,7 +1294,7 @@ available, and a confirmation email is sent.
 - **FR-018**: System MUST support guardrail actions: deny with HTTP
   446, allow-with-warning with HTTP 246, retry, fallback to a
   configured alternate, and log-only.
-- **FR-019**: System MUST apply PII redaction to request and response
+- **FR-019** *(DESCOPED 2026-04-20 per SR-01 — US7 net-new `plugins/pii-redactor/`; needs own spec)*: System MUST apply PII redaction to request and response
   payloads before persistence to logs, with configurable mode
   (redact-in-logs-only vs redact-before-provider), a configurable PII
   pattern set, and a fail-closed mode.
@@ -1309,21 +1309,22 @@ available, and a confirmation email is sent.
   ALREADY_SHIPPED. `plugins/governance/` enforces per-VK rate limits
   on tokens and requests via `governance_rate_limits` table. No new
   implementation required.
-- **FR-022**: System MUST fire threshold alerts (configurable, default
+- **FR-022** *(delivered 2026-04-20 as T055; defaults-only in v1 — per-budget configurability deferred to a follow-up spec)*: System MUST fire threshold alerts (configurable, default
   50%, 75%, 90%) to configured alert destinations before budget
-  exhaustion. **This is the only NEW work for US8** — add threshold
-  emission to the existing `plugins/governance/tracker.go` usage
-  update path.
+  exhaustion. Delivered via `plugins/governance/tracker_thresholds.go`
+  (sibling-file extension); destinations in v1 = `logger.Warn` +
+  WebSocket push. External destinations (Slack / webhook / email)
+  remain DESCOPED per SR-01 (US10).
 - **FR-023**: ~~System MUST return HTTP 429/402~~ → ALREADY_SHIPPED.
   `plugins/governance/resolver.go` already returns `DecisionRateLimited`,
   `DecisionBudgetExceeded` which map to HTTP 429/402 in the transport.
 
 **Alerts & Observability:**
 
-- **FR-024**: System MUST support threshold-based alert rules on
+- **FR-024** *(DESCOPED 2026-04-20 per SR-01 — US10 net-new `plugins/alerts/`; needs own spec)*: System MUST support threshold-based alert rules on
   error rate, p50/p95/p99 latency, cost-per-hour, and feedback score,
   with multi-destination delivery (webhook, Slack, email).
-- **FR-025**: System MUST support log export to at minimum AWS S3,
+- **FR-025** *(DESCOPED 2026-04-20 per SR-01 — US11 net-new `plugins/logexport/`; needs own spec)*: System MUST support log export to at minimum AWS S3,
   Azure Blob, Google Cloud Storage, MongoDB/DocumentDB, and OTLP
   collector, with both streaming and scheduled modes.
 - **FR-026**: System MUST offer an executive dashboard at organization
@@ -1351,15 +1352,15 @@ available, and a confirmation email is sent.
   return the rendered or fully-executed completion.
 - **FR-031**: System MUST support multimodal prompts combining text
   and images.
-- **FR-032**: System MUST support an interactive Playground for
+- **FR-032** *(DESCOPED 2026-04-20 per SR-01 — US15 net-new playground handler; needs own spec)*: System MUST support an interactive Playground for
   running a single prompt against N selected models in parallel,
   displaying streaming per-model outputs with latency, token count,
   and cost.
-- **FR-033**: System MUST support declarative Config objects
+- **FR-033** *(DESCOPED 2026-04-20 per SR-01 — US16 net-new handler + storage; needs own spec)*: System MUST support declarative Config objects
   (JSON) describing primary + fallback providers, retry policy,
   cache policy, attached guardrails, and metadata, addressable via
   `x-config-id` header with optional version pin.
-- **FR-034**: System MUST support canary routing as a primitive
+- **FR-034** *(DESCOPED 2026-04-20 per SR-01 — US22 depends on US16; needs own spec)*: System MUST support canary routing as a primitive
   defined WITHIN the declarative Config object (not within the
   governance plugin's routing-chain). The Config canary primitive
   declaratively splits a configured percentage of traffic to a
@@ -1370,13 +1371,13 @@ available, and a confirmation email is sent.
 
 **Security & Deployment:**
 
-- **FR-035**: System MUST support BYOK for at-rest encryption with
+- **FR-035** *(DESCOPED 2026-04-20 per SR-01 — US18 net-new `framework/kms/` module; needs own spec)*: System MUST support BYOK for at-rest encryption with
   AWS KMS, Azure Key Vault, and GCP KMS. By default, BYOK encrypts
   configstore-managed secrets (provider API keys, webhook secrets,
   admin and service-account API keys, prompt templates, OAuth
   client secrets). The customer-managed key wraps a per-record
   data encryption key with in-memory caching.
-- **FR-035a**: BYOK encryption of logstore request/response
+- **FR-035a** *(DESCOPED 2026-04-20 per SR-01 — US18)*: BYOK encryption of logstore request/response
   payloads MUST be supported as an opt-in per-workspace setting
   with a configurable data-key cache TTL (default 15 minutes per
   SC-009). When the setting is disabled, logstore writes use the
@@ -1385,7 +1386,7 @@ available, and a confirmation email is sent.
   webhook secrets, admin API keys, or OAuth client secrets in
   plaintext to any logstore, metric label, trace attribute, or
   external export.
-- **FR-037**: System MUST publish Helm charts and Terraform modules
+- **FR-037** *(DESCOPED 2026-04-20 per SR-01 — US19 air-gapped Helm profile is net-new; needs own spec. Note US5/US18 references within it are also descoped)*: System MUST publish Helm charts and Terraform modules
   with a documented "air-gapped" profile that operates with zero
   outbound connections to Bifrost-owned infrastructure. In v1 the
   air-gapped profile explicitly supports: Organizations &
@@ -1396,7 +1397,7 @@ available, and a confirmation email is sent.
   operate in the v1 air-gapped profile and MAY be declared
   air-gap-supported additively in later releases behind per-
   feature capability flags.
-- **FR-038**: System MUST publish a Terraform provider exposing
+- **FR-038** *(DESCOPED 2026-04-20 per SR-01 — US21 Terraform provider is a new repo; needs own spec)*: System MUST publish a Terraform provider exposing
   workspaces, virtual keys, configs, guardrails, and admin API keys
   as managed resources.
 
@@ -1421,7 +1422,9 @@ available, and a confirmation email is sent.
   defaults for `multi_org_enabled`, phone-home telemetry, license
   enforcement, metering, and billing subsystems per the deployment-
   modes table in `docs/enterprise/deployment-modes.mdx`.
-- **FR-043**: In `selfhosted` and `airgapped` modes, the license
+**FR-043..FR-046c and FR-047..FR-050b are all *(DESCOPED 2026-04-20 per SR-01 — Train E US24–US29 is net-new license/metering/billing infrastructure; each needs its own feature spec before implementation)*. Listed below for reference.**
+
+- **FR-043** *(DESCOPED — US24)*: In `selfhosted` and `airgapped` modes, the license
   plugin MUST verify a signed license file (offline-verifiable,
   using a vendor public key embedded in the binary) on boot and on
   config reload. Verification MUST complete without any network
