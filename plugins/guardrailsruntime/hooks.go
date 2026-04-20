@@ -54,7 +54,7 @@ func (p *Plugin) PreLLMHook(
 		if !r.triggersOnInput() {
 			continue
 		}
-		matched, err := p.evaluate(r, text)
+		matched, err := p.evaluate(r, "input", text)
 		if err != nil {
 			warn(p.logger, fmt.Sprintf("guardrails-runtime: rule %s eval error: %v", r.id, err))
 			if !r.failClosed {
@@ -89,19 +89,125 @@ func (p *Plugin) PreLLMHook(
 	return req, nil, nil
 }
 
-// PostLLMHook — Phase 1 stub. Output scanning arrives in Phase 3.
+// PostLLMHook scans response text against output+both-trigger rules.
+// Block on post converts the upstream response to a 451-style error;
+// flag attaches context metadata; log is audit-only (wired in phase 3).
 func (p *Plugin) PostLLMHook(
 	ctx *schemas.BifrostContext,
 	resp *schemas.BifrostResponse,
 	bifrostErr *schemas.BifrostError,
 ) (*schemas.BifrostResponse, *schemas.BifrostError, error) {
+	if p == nil || resp == nil || bifrostErr != nil {
+		// Don't run guardrails when the upstream already errored —
+		// adding our own error on top is noisy and provides no value.
+		return resp, bifrostErr, nil
+	}
+	p.mu.RLock()
+	rules := p.rules
+	p.mu.RUnlock()
+	if len(rules) == 0 {
+		return resp, bifrostErr, nil
+	}
+
+	text := extractResponseText(resp)
+	if text == "" {
+		return resp, bifrostErr, nil
+	}
+
+	var flags []GuardrailFlag
+	for i := range rules {
+		r := &rules[i]
+		if !r.triggersOnOutput() {
+			continue
+		}
+		matched, err := p.evaluate(r, "output", text)
+		if err != nil {
+			warn(p.logger, fmt.Sprintf("guardrails-runtime: rule %s eval error on output: %v", r.id, err))
+			if !r.failClosed {
+				continue
+			}
+			matched = true
+		}
+		if !matched {
+			continue
+		}
+		switch r.action {
+		case ActionBlock:
+			status := http.StatusUnavailableForLegalReasons
+			msg := fmt.Sprintf("guardrail blocked output: %s", r.name)
+			return nil, &schemas.BifrostError{
+				StatusCode: &status,
+				Error: &schemas.ErrorField{
+					Message: msg,
+					Type:    strPtr("guardrail_blocked_output"),
+				},
+			}, nil
+		case ActionFlag:
+			flags = append(flags, GuardrailFlag{
+				RuleID: r.id, RuleName: r.name,
+				Trigger: "output", MatchedAt: time.Now().UTC(),
+			})
+		case ActionLog:
+			if p.logger != nil {
+				p.logger.Info(fmt.Sprintf("guardrails-runtime: rule %s matched on output (log-only)", r.name))
+			}
+		}
+	}
+	if len(flags) > 0 && ctx != nil {
+		// Append to existing context flags if any.
+		if existing, ok := ctx.Value(BifrostContextKeyGuardrailFlags).(string); ok && existing != "" {
+			var prev []GuardrailFlag
+			_ = json.Unmarshal([]byte(existing), &prev)
+			flags = append(prev, flags...)
+		}
+		if buf, err := json.Marshal(flags); err == nil {
+			ctx.SetValue(BifrostContextKeyGuardrailFlags, string(buf))
+		}
+	}
 	return resp, bifrostErr, nil
 }
 
-// evaluate routes the rule through its provider's evaluator. Only
-// regex is live today; other providers return (false, nil) until
-// Phase 2.
-func (p *Plugin) evaluate(r *ruleEntry, text string) (bool, error) {
+// extractResponseText flattens non-stream chat + Responses output
+// to a single string. Streaming responses (delta chunks) are out of
+// scope for v1 — streaming scanner is a Phase 3 follow-up.
+func extractResponseText(resp *schemas.BifrostResponse) string {
+	if resp == nil {
+		return ""
+	}
+	var b strings.Builder
+	if resp.ChatResponse != nil {
+		for _, c := range resp.ChatResponse.Choices {
+			if c.ChatNonStreamResponseChoice == nil || c.ChatNonStreamResponseChoice.Message == nil {
+				continue
+			}
+			m := c.ChatNonStreamResponseChoice.Message
+			if m.Content == nil {
+				continue
+			}
+			if m.Content.ContentStr != nil {
+				if b.Len() > 0 {
+					b.WriteByte('\n')
+				}
+				b.WriteString(*m.Content.ContentStr)
+			}
+			if m.Content.ContentBlocks != nil {
+				for _, block := range m.Content.ContentBlocks {
+					if block.Text != nil {
+						if b.Len() > 0 {
+							b.WriteByte('\n')
+						}
+						b.WriteString(*block.Text)
+					}
+				}
+			}
+		}
+	}
+	return b.String()
+}
+
+// evaluate routes the rule through its provider's evaluator.
+// Phase 1 shipped regex only; Phase 2 adds external providers.
+func (p *Plugin) evaluate(r *ruleEntry, triggerName, text string) (bool, error) {
 	// Bare regex rule (no provider) or provider type == regex.
 	if r.regex != nil {
 		return r.regex.MatchString(text), nil
@@ -111,11 +217,9 @@ func (p *Plugin) evaluate(r *ruleEntry, text string) (bool, error) {
 	}
 	switch r.provider.typ {
 	case ProviderOpenAIModeration:
-		// Phase 2 — for now, don't match.
-		return false, nil
+		return evaluateModeration(r, text)
 	case ProviderCustomWebhook:
-		// Phase 2 — for now, don't match.
-		return false, nil
+		return evaluateWebhook(r, triggerName, text)
 	default:
 		return false, nil
 	}
