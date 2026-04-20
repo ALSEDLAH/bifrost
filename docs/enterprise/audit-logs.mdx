@@ -1,342 +1,143 @@
 ---
 title: "Audit Logs"
-description: "Comprehensive security and compliance audit logging with detailed tracking of authentication, authorization, configuration changes, and data access for enterprise governance and regulatory requirements."
+description: "Append-only record of administrative actions and denied accesses, queryable by actor, action, resource, outcome, and time range."
 icon: "scroll"
 ---
 
 ## Overview
 
-**Audit Logs** in Bifrost provide complete visibility into security-critical events, user activities, configuration changes, and data access patterns. Enterprise audit logging ensures compliance with regulatory requirements including SOC 2, GDPR, HIPAA, and ISO 27001 through comprehensive, immutable audit trails.
+Audit logs record every administrative action and denied access in Bifrost Enterprise. Each entry captures who did what, when, to which resource, and whether it was allowed, denied, or errored. Entries are stored in the enterprise database (`ent_audit_entries`) and are read-only from the UI.
 
+This page describes the **currently shipping** audit-logs surface.
 
-### Key Features
+### What's in scope today
 
-| Feature | Description |
-|---------|-------------|
-| **Immutable Logs** | Tamper-proof audit trails with cryptographic verification |
-| **Real-Time Capture** | Instant logging of all security-relevant events |
-| **Granular Filtering** | Query by user, action, resource, or time range |
-| **Long-Term Retention** | Configurable retention policies for compliance |
-| **SIEM Integration** | Export to Splunk, Datadog, Elastic, and more |
-| **Alert Triggers** | Automated alerts on suspicious activities |
+| Capability | Status |
+|---|---|
+| Append-only storage (`ent_audit_entries`) | ✓ |
+| List with filters (actor / action / resource / outcome / date range) | ✓ |
+| CSV and JSON export of filtered results | ✓ |
+| RBAC gate — requires `AuditLogs.View`; `AuditLogs.Download` for export | ✓ |
 
----
+### What's **not** in this release
 
-## What Gets Logged
+The following are commonly requested extensions; each requires its own feature spec before implementation (per SR-01 "reuse-over-new"):
 
-### Authentication Events
-- User login (successful/failed)
-- User logout
-- Session creation/expiration
-- MFA verification
-- Password changes
-- Failed authentication attempts
-- Account lockouts
-- SSO redirects
+- SIEM integrations (Splunk / Datadog / Elastic push)
+- Webhook destinations for audit events
+- Compliance-framework report generation (SOC 2, ISO 27001, etc.)
+- Cryptographic / HMAC tamper verification
+- Severity classification
+- Retention-based automatic cleanup (rows accumulate indefinitely today)
 
-### Authorization Events
-- Model access attempts
-- Provider access checks
-- Virtual key usage
-- Budget limit checks
-- Rate limit violations
-- Permission denials
-
-### Configuration Changes
-- Virtual key creation/modification/deletion
-- Team/customer creation/updates
-- User provisioning/deprovisioning
-- Budget adjustments
-- Rate limit changes
-- Provider key updates
-- Guardrail configuration changes
-- SCIM/OIDC settings updates
-
-### Data Access Events
-- PII detection and handling
-- Data export operations
-- Log access and queries
-- Sensitive configuration access
-- API key exposure attempts
-
-### Security Events
-- Prompt injection attempts
-- Jailbreak attempts
-- Unusual access patterns
-- Multiple failed authentication attempts
-- API key abuse
-- Rate limit violations
-- Suspicious IP addresses
-- Guardrail violations
+If your deployment needs any of the above, open a request — it's a deliberate scoping line, not a plan.
 
 ---
 
-## Configuration
+## What gets logged
 
-### Basic Audit Logging Setup
+Every administrative action emitted through `audit.Emit()` writes an entry with:
 
-<Tabs group="audit-config">
-<Tab title="config.json">
+| Field | Contents |
+|---|---|
+| `actor_type` | `user` / `admin_api_key` / `service_account` / `system` |
+| `actor_id`, `actor_display`, `actor_ip` | Caller identity |
+| `action` | Canonical verb, e.g. `role.create`, `workspace.delete`, `guardrail.deny` |
+| `resource_type`, `resource_id` | Affected resource |
+| `outcome` | `allowed` / `denied` / `error` |
+| `reason` | Free-text detail for non-allowed outcomes |
+| `before_json`, `after_json` | Optional state snapshots |
+| `request_id` | For correlation with request logs |
+| `organization_id`, `workspace_id` | Tenant scoping |
+| `created_at` | UTC timestamp (indexed) |
+
+Events are emitted from enterprise-aware handlers as admin actions happen. Upstream inference paths are not audited here — use request logs for those.
+
+---
+
+## Viewing audit logs
+
+Navigate to **Audit Logs** in the Bifrost workspace sidebar.
+
+Available filters:
+
+- **Actor ID** — exact match on the user or API-key UUID
+- **Action** — e.g. `role.create`, `workspace.update`
+- **Resource type** — e.g. `role`, `user`, `workspace`
+- **Outcome** — `allowed` / `denied` / `error`
+- **From / To** — ISO 8601 date-time range
+- **Limit / Offset** — paginate up to 500 per page (default 50)
+
+Apply the filters, then use the **CSV** or **JSON** export button to download the filtered set for offline analysis or out-of-band SIEM ingestion.
+
+---
+
+## API
+
+All endpoints require a session with `AuditLogs.View`; the export endpoints additionally require `AuditLogs.Download`.
+
+### List
+
+```bash
+curl -s "http://localhost:8088/api/audit-logs?outcome=denied&limit=50&offset=0"
+```
+
+Response:
 
 ```json
 {
-  "audit_logs": {
-    "disabled": false,
-    "hmac_key": "env.AUDIT_HMAC_KEY",
-    "retention_days": 365
-  }
-}
-```
-
-</Tab>
-<Tab title="Environment Variables">
-
-```bash
-# Enable audit logging
-BIFROST_AUDIT_LOGS_ENABLED=true
-
-# Retention settings
-BIFROST_AUDIT_RETENTION_DAYS=365
-BIFROST_AUDIT_ARCHIVE_DAYS=90
-
-# Event capture
-BIFROST_AUDIT_AUTH_EVENTS=true
-BIFROST_AUDIT_CONFIG_CHANGES=true
-BIFROST_AUDIT_SECURITY_EVENTS=true
-
-# Immutability
-BIFROST_AUDIT_IMMUTABLE=true
-```
-
-</Tab>
-</Tabs>
-
-### Configuration Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `disabled` | boolean | When `true`, audit logging is turned off. Default: `false`. |
-| `hmac_key` | string | HMAC secret key used to sign audit events. Minimum 32 bytes. Supports `env.` prefix for environment variables (e.g. `env.AUDIT_HMAC_KEY`). |
-| `retention_days` | integer | Days to retain audit log entries. `0` disables retention-based cleanup. |
-
----
-
-## Querying Audit Logs
-
-### API-Based Queries
-
-**Query Authentication Events:**
-```bash
-curl -X GET "http://localhost:8080/api/audit-logs?event_type=authentication&start_date=2024-01-01&end_date=2024-01-31" \
-  -H "Authorization: Bearer admin-token"
-```
-
-**Query by User:**
-```bash
-curl -X GET "http://localhost:8080/api/audit-logs?user_id=user-alice-001&limit=100" \
-  -H "Authorization: Bearer admin-token"
-```
-
-**Query Failed Access Attempts:**
-```bash
-curl -X GET "http://localhost:8080/api/audit-logs?action=access_denied&severity=high" \
-  -H "Authorization: Bearer admin-token"
-```
-
-**Query Configuration Changes:**
-```bash
-curl -X GET "http://localhost:8080/api/audit-logs?event_type=configuration_change&resource_type=virtual_key" \
-  -H "Authorization: Bearer admin-token"
-```
-
-### Advanced Filtering
-
-```bash
-curl -X POST http://localhost:8080/api/audit-logs/query \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer admin-token" \
-  -d '{
-    "filters": {
-      "event_types": ["authentication", "authorization"],
-      "date_range": {
-        "start": "2024-01-01T00:00:00Z",
-        "end": "2024-01-31T23:59:59Z"
-      },
-      "actors": {
-        "user_ids": ["user-alice-001", "user-bob-002"],
-        "ip_addresses": ["203.0.113.0/24"]
-      },
-      "status": ["failed", "blocked"],
-      "severity": ["medium", "high", "critical"]
-    },
-    "sort": {
-      "field": "timestamp",
-      "order": "desc"
-    },
-    "limit": 1000,
-    "include_details": true
-  }'
-```
-
-### Response Format
-
-```json
-{
-  "total_count": 347,
-  "returned_count": 100,
-  "page": 1,
-  "audit_logs": [
+  "entries": [
     {
-      "event_id": "evt_001",
-      "timestamp": "2024-01-15T10:30:00.123Z",
-      "event_type": "authentication",
-      "action": "user_login",
-      "status": "failed",
-      "severity": "medium",
-      "actor": {
-        "user_id": "user-alice-001",
-        "email": "alice@company.com",
-        "ip_address": "203.0.113.42"
-      },
-      "details": {
-        "auth_method": "password",
-        "failure_reason": "invalid_password",
-        "attempts_count": 3
-      },
-      "verification": {
-        "hash": "sha256:abc123...",
-        "verified": true
-      }
+      "id": "01945d8c-...",
+      "organization_id": "...",
+      "workspace_id": "",
+      "actor_type": "user",
+      "actor_id": "...",
+      "actor_display": "alice@example.com",
+      "actor_ip": "203.0.113.42",
+      "action": "role.delete",
+      "resource_type": "role",
+      "resource_id": "01945d7a-...",
+      "outcome": "denied",
+      "reason": "cannot delete built-in role",
+      "before_json": "{...}",
+      "after_json": "",
+      "request_id": "req_abc123",
+      "created_at": "2026-04-20T08:10:12.345Z"
     }
   ],
-  "next_page": "/api/enterprise/audit-logs?page=2"
+  "total": 1,
+  "limit": 50,
+  "offset": 0
 }
 ```
 
----
-
-## SIEM Integration
-
-### Splunk Integration
-
-```json
-{
-    "audit_logs": {
-      "siem_integration": {
-        "splunk": {
-          "enabled": true,
-          "hec_endpoint": "https://splunk.company.com:8088/services/collector",
-          "hec_token": "${SPLUNK_HEC_TOKEN}",
-          "source_type": "bifrost:audit",
-          "index": "security",
-          "batch_size": 100,
-          "flush_interval": "10s"
-        }
-      }
-    }
-}
-```
-
-### Datadog Integration
-
-```json
-{  
-    "audit_logs": {
-        "siem_integration": {
-        "datadog": {
-                "enabled": true,
-                "api_key": "${DATADOG_API_KEY}",
-                "site": "datadoghq.com",
-                "service": "bifrost",
-                "tags": ["env:production", "team:security"]
-            }
-        }
-    }  
-}
-```
-
-### Elastic Security Integration
-
-```json
-{  
-    "audit_logs": {
-      "siem_integration": {
-        "elastic": {
-          "enabled": true,
-          "endpoint": "https://elastic.company.com:9200",
-          "api_key": "${ELASTIC_API_KEY}",
-          "index": "bifrost-audit-logs",
-          "pipeline": "security-enrichment"
-        }
-      }
-    }
-}
-```
-
-### Webhook Integration
-
-```json
-{
-    "audit_logs": {
-      "webhooks": {
-        "enabled": true,
-        "endpoints": [
-          {
-            "name": "security_incidents",
-            "url": "https://security.company.com/webhooks/audit",
-            "auth": {
-              "type": "bearer",
-              "token": "${WEBHOOK_AUTH_TOKEN}"
-            },
-            "filters": {
-              "event_types": ["security_incident"],
-              "severity": ["high", "critical"]
-            },
-            "retry": {
-              "max_attempts": 3,
-              "backoff": "exponential"
-            }
-          }
-        ]
-      }
-    }
-}
-```
-
----
-
-## Compliance Reporting
-
-### Generate Audit Reports
+### Export
 
 ```bash
-curl -X POST http://localhost:8080/api/enterprise/audit-logs/reports \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer admin-token" \
-  -d '{
-    "report_type": "compliance_audit",
-    "compliance_framework": "soc2_type2",
-    "date_range": {
-      "start_date": "2024-01-01T00:00:00Z",
-      "end_date": "2024-03-31T23:59:59Z"
-    },
-    "include_sections": [
-      "authentication_events",
-      "authorization_events",
-      "configuration_changes",
-      "security_incidents"
-    ],
-    "format": "pdf",
-    "include_evidence": true
-  }'
+# CSV (filtered by same query params as the list endpoint)
+curl -s "http://localhost:8088/api/audit-logs/export?format=csv&outcome=denied" \
+  -o audit-denied.csv
+
+# JSON array
+curl -s "http://localhost:8088/api/audit-logs/export?format=json" \
+  -o audit.json
 ```
 
-### Report Types
+Both endpoints honor the filter params from the list endpoint. No pagination on export — the entire filtered set is returned.
 
-| Report Type | Description | Use Case |
-|------------|-------------|----------|
-| **Access Audit** | All user authentication and access events | SOC 2, ISO 27001 |
-| **Change Audit** | Configuration and permission changes | Change management |
-| **Security Audit** | Security incidents and violations | Security reviews |
-| **Compliance Report** | Framework-specific compliance evidence | Regulatory audits |
-| **User Activity** | Individual user activity summary | HR investigations |
+---
+
+## Querying from the database
+
+`ent_audit_entries` lives in the Bifrost configuration database (SQLite by default, Postgres when configured). Standard SQL works for ad-hoc investigations:
+
+```sql
+SELECT action, resource_type, outcome, COUNT(*)
+FROM ent_audit_entries
+WHERE created_at >= datetime('now', '-24 hours')
+GROUP BY action, resource_type, outcome
+ORDER BY 4 DESC;
+```
+
+Indexes on `(organization_id, created_at)`, `action`, `resource_type + resource_id`, `actor_type`, `actor_id`, `outcome`, `request_id` keep common admin queries fast.

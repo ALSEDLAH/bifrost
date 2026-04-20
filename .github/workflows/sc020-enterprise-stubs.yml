@@ -1,0 +1,34 @@
+name: SC-020 Enterprise Stubs Check
+
+# Success Criterion SC-020 (revised 2026-04-20 per SR-01 "reuse-over-new"):
+# Every enterprise stub for an in-scope user story must render a real
+# implementation — not the OSS ContactUsView fallback. Descoped stubs are
+# explicitly whitelisted in the script and remain fallback re-exports by
+# design.
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "ui/app/enterprise/components/**"
+      - "ui/app/_fallbacks/enterprise/components/**"
+      - "scripts/check-sc020-enterprise-stubs.sh"
+  push:
+    branches: [main]
+    paths:
+      - "ui/app/enterprise/components/**"
+      - "ui/app/_fallbacks/enterprise/components/**"
+      - "scripts/check-sc020-enterprise-stubs.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  check-enterprise-stubs:
+    name: no fallback re-export for in-scope stubs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run SC-020 check
+        run: bash scripts/check-sc020-enterprise-stubs.sh

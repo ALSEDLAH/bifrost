@@ -2,6 +2,38 @@
 
 ## [Unreleased] — enterprise-parity branch
 
+### Added (US2 — Granular RBAC, T023–T025 + T032/T033, 2026-04-20)
+
+- `transports/bifrost-http/handlers/rbac.go` — `/api/rbac/{meta,me}`
+  plus CRUD on `/api/rbac/roles`, `/api/rbac/users`, `/api/rbac/users
+  /:id/assignments`, `/api/rbac/assignments`. Backed by existing
+  `tenancy.RoleRepo` and `ent_users` / `ent_roles` / `ent_user_role_
+  assignments` tables (no new storage). v1 single-org mode uses
+  `ent_system_defaults.default_organization_id` as the implicit org.
+- `server/server.go` registers the handler via
+  `NewRBACHandler(s.Config.ConfigStore.DB(), logger)`.
+
+### Added (US4 — Audit Logs, T035–T037, 2026-04-20)
+
+- No backend change — the existing `handlers/audit_logs.go` (list +
+  CSV/JSON export under `/api/audit-logs*`) already covers US4.
+
+### Added (US30 — MCP Auth Config, T075, 2026-04-20)
+
+- No backend change — reuse of upstream `/api/oauth/config/:id/status`
+  + DELETE endpoints.
+
+### Descoped 2026-04-20 (per SR-01 reuse-over-new scope rule)
+
+- US5 admin API keys: removed an earlier speculative
+  `handlers/admin_api_keys.go` + `ent_admin_api_keys` table.
+  Upstream `auth_config` basic-auth already provides admin auth.
+- US30 T074 MCP Tool Groups: no upstream grouping column on
+  `TableMCPClient`, no endpoint; net-new per SR-01. Fallback stub
+  retained.
+- US30 T076 Large Payload settings: no persistence endpoint exists;
+  fallback stub retained.
+
 ### Added (US1 — Organizations & Workspaces, T037–T039)
 
 - `transports/bifrost-http/handlers/organizations.go` — GET/PATCH

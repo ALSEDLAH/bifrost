@@ -1,227 +1,191 @@
 ---
 title: "Role-Based Access Control"
-description: "Manage user access with fine-grained permissions across Bifrost resources using roles and permissions."
+description: "Fine-grained permissions across 24 Bifrost resources, managed via roles and per-user assignments."
 icon: "user-shield"
 ---
 
 ## Overview
 
-Role-Based Access Control (RBAC) in Bifrost Enterprise provides fine-grained access management for your organization. RBAC allows you to define roles with specific permissions, controlling what users can view, create, update, or delete across all Bifrost resources.
+Role-Based Access Control (RBAC) in Bifrost Enterprise controls what each user can do. Permissions are expressed as `Resource.Operation` scopes (e.g. `VirtualKeys.Create`, `AuditLogs.Download`); a **role** is a named collection of those scopes, and a **role assignment** grants a role to a user.
 
-**Key Benefits:**
-- **Principle of Least Privilege** - Grant users only the permissions they need
-- **Centralized Access Management** - Manage all permissions from a single interface
-- **Audit-Ready** - Track who has access to what for compliance requirements
-- **Flexible Role Design** - Use system roles or create custom roles for your organization
+**Key properties:**
 
-RBAC integrates seamlessly with [User Provisioning (SCIM)](./user-provisioning), automatically assigning roles based on your IdP groups and claims.
-
----
-
-## Roles & Permissions
-
-Navigate to **Governance** → **Roles & Permissions** in the Bifrost dashboard to manage roles.
-
-<Frame>
-  <img src="/media/rbac/rbac-list.png" alt="Roles & Permissions management interface showing system roles" />
-</Frame>
-
-### System Roles
-
-Bifrost includes three pre-configured system roles that cover common access patterns:
-
-| Role | Permissions | Description |
-|------|-------------|-------------|
-| **Admin** | 42 | Full access to all resources and operations |
-| **Developer** | 27 | CRUD access to technical resources, view access to logs and cluster |
-| **Viewer** | 14 | Read-only access to all resources |
-
-System roles cannot be deleted, but their permissions can be customized to fit your organization's needs.
-
-### Custom Roles
-
-Create custom roles when system roles don't match your organizational structure. Custom roles are useful for:
-
-- **Specialized Teams** - Create roles for QA, Security, or Compliance teams
-- **Project-Based Access** - Limit access to specific resources per project
-- **Temporary Access** - Grant limited permissions for contractors or auditors
-
-**To create a custom role:**
-
-1. Click **Add Role** in the top-right corner
-2. Enter a **Role Name** (e.g., "Auditor", "QA Team")
-3. Add a **Description** explaining the role's purpose
-4. Click **Create Role**
-5. Assign permissions using the Manage Permissions dialog
+- **24 resources × 6 operations** — every enterprise-visible concept is a resource; every write-shaped action is an operation.
+- **4 built-in roles** seeded at first boot: Owner, Admin, Manager, Member.
+- **Custom roles** are fully editable; built-in roles are read-only.
+- **Per-user assignments** — each user receives one or more roles; assignments can be org-wide or workspace-scoped.
+- Every role change and assignment change emits an audit entry (see [Audit Logs](./audit-logs)).
 
 ---
 
-## Resources & Operations
+## Resources & operations
 
-RBAC permissions are defined as combinations of **Resources** and **Operations**.
+RBAC is structured as a matrix. The 24 resources currently defined:
 
-### Protected Resources
+`GuardrailsConfig`, `GuardrailsProviders`, `GuardrailRules`, `UserProvisioning`, `Cluster`, `Settings`, `Users`, `Logs`, `Observability`, `VirtualKeys`, `ModelProvider`, `Plugins`, `MCPGateway`, `AdaptiveRouter`, `AuditLogs`, `Customers`, `Teams`, `RBAC`, `Governance`, `RoutingRules`, `PIIRedactor`, `PromptRepository`, `PromptDeploymentStrategy`, `AccessProfiles`.
 
-Bifrost protects access to the following resources:
+The 6 operations:
 
-| Resource | Description |
-|----------|-------------|
-| **Logs** | Request and response logs |
-| **ModelProvider** | AI model provider configurations |
-| **Observability** | Monitoring and metrics dashboards |
-| **Plugins** | Plugin configurations and management |
-| **VirtualKeys** | Virtual key management |
-| **UserProvisioning** | User and group provisioning settings |
-| **Users** | User account management |
-| **AuditLogs** | Audit trail and compliance logs |
-| **GuardrailsConfig** | Guardrail configurations |
-| **GuardrailRules** | Individual guardrail rules |
-| **Cluster** | Cluster configuration and nodes |
-| **Settings** | Workspace settings |
-| **MCPGateway** | MCP Gateway configurations |
-| **AdaptiveRouter** | Adaptive routing settings |
+| Operation | Meaning |
+|---|---|
+| `Read` | Read raw data (counts, list endpoints for downstream use) |
+| `View` | View in UI (list/detail rendering) |
+| `Create` | Create a new instance |
+| `Update` | Modify an existing instance |
+| `Delete` | Remove an instance |
+| `Download` | Export data off-system (CSV/JSON) |
 
-### Operations
-
-Each resource supports up to four operations:
-
-| Operation | Description |
-|-----------|-------------|
-| **View** | Read-only access to view the resource |
-| **Create** | Ability to create new instances of the resource |
-| **Update** | Ability to modify existing resources |
-| **Delete** | Ability to remove resources |
+Not every resource meaningfully supports every operation (e.g. `AuditLogs` is append-only — `Create`/`Update`/`Delete` don't apply even if the scope is granted). The matrix is intentionally wide so a single role can cover a whole area without operation-specific surprises.
 
 ---
 
-## Managing Permissions
+## Built-in roles
 
-To assign or modify permissions for a role:
+| Role | Intended holder | Notes |
+|---|---|---|
+| **Owner** | Organization owner | Full access — wildcard scope `*`. Cannot be modified or deleted. |
+| **Admin** | Platform admin | Broad admin access on Customers, Teams, VirtualKeys, Guardrails, AuditLogs, RBAC, etc. — one step below Owner. |
+| **Manager** | Workspace admin | Workspace-scoped admin (Teams, Users, RoutingRules, PromptRepository) plus view access to governance. |
+| **Member** | Default end-user | Read/view across most resources; limited write access on Prompts. |
 
-1. Navigate to **Governance** → **Roles & Permissions**
-2. Click the **menu icon** (•••) on the role you want to modify
-3. Select **Manage Permissions**
-
-<Frame>
-  <img src="/media/rbac/rbac-edit-role.png" alt="Manage Permissions dialog showing resource-based permission assignment" />
-</Frame>
-
-The Manage Permissions dialog provides a two-panel interface:
-
-**Left Panel - Resources:**
-- Lists all available resources
-- Shows the count of enabled permissions per resource (e.g., "4/4 permissions")
-- Click a resource to view its permissions
-
-**Right Panel - Permissions:**
-- Displays available operations for the selected resource
-- Toggle switches to enable/disable each permission
-- Shows operation descriptions for clarity
-
-### Assigning Permissions
-
-1. Select a **Resource** from the left panel
-2. Toggle the **operations** you want to enable for this role
-3. Repeat for other resources as needed
-4. Click **Save Permissions** to apply changes
-
-The footer shows the total permissions count (e.g., "42 of 42 permissions selected") to help track the role's access level.
+The exact scope set for each built-in role lives in `framework/configstore/migrations_enterprise.go` (`builtInRoles`), seeded by the `E004_orgs_workspaces_users_roles` migration at first boot. Built-in roles can be **viewed** in the UI but not edited or deleted — to customize, clone their intent into a new custom role.
 
 ---
 
-## Best Practices
+## Managing roles & users from the UI
 
-### Role Design
+All management surfaces are under `/workspace/governance/`:
 
-- **Start with System Roles** - Use Admin, Developer, and Viewer as templates
-- **Follow Least Privilege** - Only grant permissions that are necessary
-- **Document Role Purpose** - Use clear descriptions to explain each role's intent
-- **Review Regularly** - Audit role assignments quarterly
+- **`/workspace/governance/rbac`** — roles list; create / edit / delete custom roles. The editor presents the full 24×6 matrix with a row-click shortcut to toggle all operations for a resource at once.
+- **`/workspace/governance/users`** — users list; invite a new user by email, manage role assignments per-user (assign, unassign, see current roles).
 
-### Permission Strategies
-
-**For Development Teams:**
-```
-Developer role + specific resource access based on team focus
-- Frontend team: VirtualKeys (View), Logs (View), Observability (View)
-- Backend team: ModelProvider (CRUD), Plugins (CRUD), Logs (View)
-```
-
-**For Security/Compliance Teams:**
-```
-Custom "Auditor" role with:
-- AuditLogs (View)
-- Logs (View)
-- GuardrailsConfig (View)
-- Users (View)
-```
-
-**For Operations Teams:**
-```
-Custom "Ops" role with:
-- Cluster (CRUD)
-- Observability (View)
-- Logs (View)
-- Settings (View, Update)
-```
+The UI gates itself: a user without `RBAC.View` cannot open the roles page, without `Users.Create` cannot invite users, etc. The gates reflect the user's resolved scopes fetched from `/api/rbac/me` at session start.
 
 ---
 
-## Integration with Identity Providers
+## API
 
-When using [User Provisioning (SCIM)](./user-provisioning) with Okta, Entra, Zitadel, Keycloak, or Google Workspace, roles can be automatically assigned based on:
+All endpoints require a session with the appropriate scope on the `RBAC` and `Users` resources.
 
-- **IdP Groups** - Map identity provider groups to Bifrost roles
-- **App Roles** - Sync application roles from your IdP
-- **Claims** - Use custom claims to determine role assignment
+### Meta & current user
 
-Users authenticated via SSO receive their role assignments automatically on first login, with permissions synchronized on each session.
-
----
-
-## API Access
-
-Roles and permissions can also be managed via the API:
-
-**List all roles:**
 ```bash
-curl -X GET http://localhost:8080/api/roles \
-  -H "Authorization: Bearer <admin_token>"
+# 24 resources + 6 operations + the built-in role names
+curl -s http://localhost:8088/api/rbac/meta
+
+# Current user's resolved permissions (used by the UI's RbacProvider)
+curl -s http://localhost:8088/api/rbac/me
 ```
 
-**Get role permissions:**
-```bash
-curl -X GET http://localhost:8080/api/roles/{role_id}/permissions \
-  -H "Authorization: Bearer <admin_token>"
-```
+### Roles
 
-**Update role permissions:**
 ```bash
-curl -X PUT http://localhost:8080/api/roles/{role_id}/permissions \
-  -H "Authorization: Bearer <admin_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "permission_ids": [1, 2, 3, 4, 5]
-  }'
-```
+# List
+curl -s http://localhost:8088/api/rbac/roles
 
-**Create a custom role:**
-```bash
-curl -X POST http://localhost:8080/api/roles \
-  -H "Authorization: Bearer <admin_token>" \
-  -H "Content-Type: application/json" \
+# Create custom
+curl -s -X POST http://localhost:8088/api/rbac/roles \
+  -H 'Content-Type: application/json' \
   -d '{
     "name": "Auditor",
-    "description": "Read-only access for compliance auditing"
+    "scopes": {
+      "AuditLogs": ["Read", "View", "Download"],
+      "Logs": ["Read", "View"]
+    }
   }'
+
+# Update (only custom roles)
+curl -s -X PATCH http://localhost:8088/api/rbac/roles/{id} \
+  -H 'Content-Type: application/json' \
+  -d '{"scopes": {"AuditLogs": ["Read", "View", "Download"], "Logs": ["Read", "View", "Download"]}}'
+
+# Delete (only custom roles)
+curl -s -X DELETE http://localhost:8088/api/rbac/roles/{id}
+```
+
+Attempting to modify or delete a built-in role returns `403 cannot modify built-in role`.
+
+### Users
+
+```bash
+# List (includes active role assignments per user)
+curl -s http://localhost:8088/api/rbac/users
+
+# Invite (creates a pending user; activated on first successful SSO login)
+curl -s -X POST http://localhost:8088/api/rbac/users \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "alice@example.com", "display_name": "Alice"}'
+
+# Update
+curl -s -X PATCH http://localhost:8088/api/rbac/users/{id} \
+  -H 'Content-Type: application/json' \
+  -d '{"status": "suspended"}'
+
+# Delete (also removes all their role assignments)
+curl -s -X DELETE http://localhost:8088/api/rbac/users/{id}
+```
+
+### Assignments
+
+```bash
+# List assignments for a user
+curl -s http://localhost:8088/api/rbac/users/{userId}/assignments
+
+# Assign a role (optionally workspace-scoped)
+curl -s -X POST http://localhost:8088/api/rbac/assignments \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id": "...", "role_id": "...", "workspace_id": ""}'
+
+# Unassign
+curl -s -X DELETE http://localhost:8088/api/rbac/assignments/{assignmentId}
+```
+
+Workspace-scoped assignments apply only when the user is acting in that workspace; an empty `workspace_id` means org-wide.
+
+---
+
+## Examples
+
+### A read-only auditor
+
+```json
+{
+  "name": "Auditor",
+  "scopes": {
+    "AuditLogs": ["Read", "View", "Download"],
+    "Logs":      ["Read", "View"],
+    "Users":     ["Read", "View"],
+    "RBAC":      ["Read", "View"]
+  }
+}
+```
+
+### A workspace operator (governance-focused)
+
+```json
+{
+  "name": "Ops Lead",
+  "scopes": {
+    "VirtualKeys":  ["Read", "View", "Create", "Update", "Delete"],
+    "Teams":        ["Read", "View", "Create", "Update"],
+    "Governance":   ["Read", "View", "Create", "Update"],
+    "RoutingRules": ["Read", "View", "Create", "Update", "Delete"],
+    "Logs":         ["Read", "View", "Download"]
+  }
+}
 ```
 
 ---
 
-## Next Steps
+## Notes & limits
 
-- **[Setting up Okta](./setting-up-okta)** - Configure Okta for SSO with role sync
-- **[Setting up Microsoft Entra](./setting-up-entra)** - Configure Entra ID for SSO with role sync
-- **[Audit Logs](./audit-logs)** - Track permission usage and access patterns
-- **[Advanced Governance](./advanced-governance)** - Learn about the complete governance framework
+- **Enforcement surface:** UI elements are gated today; server-side enforcement of individual scope checks on each admin handler is rolled out alongside new handlers — not every legacy upstream endpoint performs scope checks yet. Treat the enforcement line as **RBAC-aware for enterprise surfaces; permissive for upstream endpoints already exposed to the single admin basic-auth credential**.
+- **SSO / SCIM auto-provisioning of role assignments is not in scope for this release.** Today, invite a user by email in the UI, then assign roles manually. SSO-based auto-mapping is a separate feature that needs its own spec before implementation.
+- **Built-in role scope sets are fixed at the `builtInRoles` table in `framework/configstore/migrations_enterprise.go`**. Customizing a built-in is done by cloning its scopes into a new custom role and assigning that role instead.
 
+---
+
+## Related
+
+- [Audit Logs](./audit-logs) — every role change, assignment change, and denied access records an entry.
+- [Organizations & Workspaces](./organizations-workspaces) — the tenant context inside which roles exist.
