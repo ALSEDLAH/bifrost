@@ -1174,6 +1174,9 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// SCIM admin config (spec 009). /scim/v2/* protocol endpoints are phase 2.
 	scimCfgHandler := handlers.NewSCIMConfigHandler(s.Config.ConfigStore, logger)
 	scimCfgHandler.RegisterRoutes(s.Router, middlewares...)
+	// Guardrails admin CRUD (spec 010). Runtime enforcement is phase 2.
+	guardrailsHandler := handlers.NewGuardrailsHandler(s.Config.ConfigStore, logger)
+	guardrailsHandler.RegisterRoutes(s.Router, middlewares...)
 	// Boot-time: seed in-process StreamingDecompressThreshold from the
 	// stored config so the first request after startup respects admin config.
 	if row, _ := s.Config.ConfigStore.GetLargePayloadConfig(context.Background()); row != nil && row.Enabled {

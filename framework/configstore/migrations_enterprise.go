@@ -33,6 +33,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE007LargePayloadConfig(ctx),
 		migrationE008LogExportConnectors(ctx),
 		migrationE009SCIMConfig(ctx),
+		migrationE010Guardrails(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -301,6 +302,36 @@ func migrationE009SCIMConfig(ctx context.Context) *migrator.Migration {
 		Rollback: func(tx *gorm.DB) error {
 			tx = tx.WithContext(ctx)
 			return tx.Migrator().DropTable(&tables_enterprise.TableSCIMConfig{})
+		},
+	}
+}
+
+// migrationE010Guardrails creates ent_guardrail_providers +
+// ent_guardrail_rules used by the admin policy UI (spec 010).
+func migrationE010Guardrails(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E010_guardrails",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(
+				&tables_enterprise.TableGuardrailProvider{},
+				&tables_enterprise.TableGuardrailRule{},
+			); err != nil {
+				return fmt.Errorf("auto-migrate guardrails: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			for _, t := range []any{
+				&tables_enterprise.TableGuardrailRule{},
+				&tables_enterprise.TableGuardrailProvider{},
+			} {
+				if err := tx.Migrator().DropTable(t); err != nil {
+					return fmt.Errorf("drop guardrails table: %w", err)
+				}
+			}
+			return nil
 		},
 	}
 }

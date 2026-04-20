@@ -420,6 +420,20 @@ type ConfigStore interface {
 	GetSCIMConfig(ctx context.Context) (*tables_enterprise.TableSCIMConfig, error)
 	UpsertSCIMConfig(ctx context.Context, config *tables_enterprise.TableSCIMConfig) error
 
+	// Guardrails (enterprise — spec 010)
+	ListGuardrailProviders(ctx context.Context) ([]tables_enterprise.TableGuardrailProvider, error)
+	GetGuardrailProviderByID(ctx context.Context, id string) (*tables_enterprise.TableGuardrailProvider, error)
+	CreateGuardrailProvider(ctx context.Context, p *tables_enterprise.TableGuardrailProvider) error
+	UpdateGuardrailProvider(ctx context.Context, p *tables_enterprise.TableGuardrailProvider) error
+	DeleteGuardrailProvider(ctx context.Context, id string) error
+
+	ListGuardrailRules(ctx context.Context) ([]tables_enterprise.TableGuardrailRule, error)
+	GetGuardrailRuleByID(ctx context.Context, id string) (*tables_enterprise.TableGuardrailRule, error)
+	CreateGuardrailRule(ctx context.Context, r *tables_enterprise.TableGuardrailRule) error
+	UpdateGuardrailRule(ctx context.Context, r *tables_enterprise.TableGuardrailRule) error
+	DeleteGuardrailRule(ctx context.Context, id string) error
+	CountGuardrailRulesByProvider(ctx context.Context, providerID string) (int64, error)
+
 	// DB returns the underlying database connection.
 	DB() *gorm.DB
 

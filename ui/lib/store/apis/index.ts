@@ -18,3 +18,4 @@ export * from "./mcpToolGroupsApi";
 export * from "./clusterApi";
 export * from "./logExportConnectorsApi";
 export * from "./scimConfigApi";
+export * from "./guardrailsApi";
