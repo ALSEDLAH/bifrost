@@ -18,8 +18,10 @@ import (
 	"github.com/google/uuid"
 	bifrost "github.com/maximhq/bifrost/core"
 	"github.com/maximhq/bifrost/core/schemas"
+	"github.com/maximhq/bifrost/framework/alertchannels"
 	"github.com/maximhq/bifrost/framework/configstore"
 	"github.com/maximhq/bifrost/framework/configstore/tables"
+	tables_enterprise "github.com/maximhq/bifrost/framework/configstore/tables-enterprise"
 	"github.com/maximhq/bifrost/framework/logstore"
 	dynamicPlugins "github.com/maximhq/bifrost/framework/plugins"
 	"github.com/maximhq/bifrost/framework/tracing"
@@ -1153,6 +1155,20 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// RBAC role/user/assignment handler (US2).
 	rbacHandler := handlers.NewRBACHandler(s.Config.ConfigStore.DB(), logger)
 	rbacHandler.RegisterRoutes(s.Router, middlewares...)
+	// Alert channels CRUD + dispatcher (spec 004).
+	alertDispatcher := alertchannels.New(logger)
+	alertChannelsHandler := handlers.NewAlertChannelsHandler(s.Config.ConfigStore, alertDispatcher, logger)
+	alertChannelsHandler.RegisterRoutes(s.Router, middlewares...)
+	if gp, ok := governancePlugin.(*governance.GovernancePlugin); ok && gp != nil {
+		gp.SetBudgetThresholdAlertDispatcher(alertDispatcher, func() []tables_enterprise.TableAlertChannel {
+			list, err := s.Config.ConfigStore.ListAlertChannels(context.Background())
+			if err != nil {
+				logger.Warn(fmt.Sprintf("alert-channel fetch failed: %v", err))
+				return nil
+			}
+			return list
+		})
+	}
 	if s.WebSocketHandler != nil {
 		s.WebSocketHandler.RegisterRoutes(s.Router, middlewares...)
 	}

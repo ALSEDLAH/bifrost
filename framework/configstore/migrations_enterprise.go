@@ -28,6 +28,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		// E002 (sidecar tables) REMOVED — upstream CustomerID/TeamID FKs suffice.
 		// E003 is in framework/logstore/migrations_enterprise.go (logstore-side).
 		migrationE004UsersAndRoles(ctx),
+		migrationE005AlertChannels(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -68,7 +69,8 @@ var builtInRoles = []struct {
 		"RoutingRules": ["Read","View","Create","Update","Delete"],
 		"PromptRepository": ["Read","View","Create","Update","Delete"],
 		"PromptDeploymentStrategy": ["Read","View","Create","Update"],
-		"AccessProfiles": ["Read","View","Create","Update","Delete"]
+		"AccessProfiles": ["Read","View","Create","Update","Delete"],
+		"AlertChannels": ["Read","View","Create","Update","Delete"]
 	}`},
 	// Member: read/view most things, write on prompts/configs.
 	{Name: "Member", IsBuiltin: true, ScopeJSON: `{
@@ -199,6 +201,25 @@ func migrationE001SeedDefaultOrg(ctx context.Context) *migrator.Migration {
 		Rollback: func(tx *gorm.DB) error {
 			tx = tx.WithContext(ctx)
 			return tx.Migrator().DropTable(&tables_enterprise.TableSystemDefaults{})
+		},
+	}
+}
+
+// migrationE005AlertChannels creates the ent_alert_channels table used by
+// the governance plugin's threshold-crossing dispatcher (spec 004).
+func migrationE005AlertChannels(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E005_alert_channels",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TableAlertChannel{}); err != nil {
+				return fmt.Errorf("auto-migrate alert_channels: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TableAlertChannel{})
 		},
 	}
 }

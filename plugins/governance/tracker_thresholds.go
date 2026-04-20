@@ -27,7 +27,9 @@ import (
 	"sync"
 
 	"github.com/maximhq/bifrost/core/schemas"
+	"github.com/maximhq/bifrost/framework/alertchannels"
 	configstoreTables "github.com/maximhq/bifrost/framework/configstore/tables"
+	alertchannelsTables "github.com/maximhq/bifrost/framework/configstore/tables-enterprise"
 )
 
 // budgetThresholdLevels is the ordered list of thresholds to alert on.
@@ -48,6 +50,12 @@ type thresholdState struct {
 	emitted     sync.Map // map[budgetThresholdKey]struct{}
 	mu          sync.RWMutex
 	broadcaster schemas.EventBroadcaster
+	// Alert-channel dispatch — wired by server startup (spec 004).
+	// dispatcher sends events to configured webhook/slack channels.
+	// channels is called every emission so updates take effect without
+	// a restart; returning nil / empty slice is a no-op.
+	dispatcher *alertchannels.Dispatcher
+	channels   func() []alertchannelsTables.TableAlertChannel
 }
 
 // thresholdStateStore is a process-level holder indexed by tracker
@@ -86,6 +94,21 @@ func (t *UsageTracker) SetThresholdBroadcaster(fn schemas.EventBroadcaster) {
 	s := t.thresholdState()
 	s.mu.Lock()
 	s.broadcaster = fn
+	s.mu.Unlock()
+}
+
+// SetAlertDispatcher installs the alert-channel dispatcher used to
+// fan out threshold crossings to user-configured webhook/Slack
+// destinations. `channelsFn` is called on every emission; return nil
+// or an empty slice to no-op (spec 004).
+func (t *UsageTracker) SetAlertDispatcher(d *alertchannels.Dispatcher, channelsFn func() []alertchannelsTables.TableAlertChannel) {
+	if t == nil {
+		return
+	}
+	s := t.thresholdState()
+	s.mu.Lock()
+	s.dispatcher = d
+	s.channels = channelsFn
 	s.mu.Unlock()
 }
 
@@ -164,20 +187,31 @@ func (t *UsageTracker) emitThreshold(_ context.Context, state *thresholdState, b
 		level, budget.ID, vkID, teamID, customerID, string(provider), newUsage, budget.MaxLimit,
 	))
 
+	payload := map[string]any{
+		"level":          level,
+		"budget_id":      budget.ID,
+		"virtual_key":    vkID,
+		"team_id":        teamID,
+		"customer_id":    customerID,
+		"provider":       string(provider),
+		"current_usage":  newUsage,
+		"max_limit":      budget.MaxLimit,
+		"reset_duration": budget.ResetDuration,
+	}
+
 	state.mu.RLock()
 	bc := state.broadcaster
+	dispatcher := state.dispatcher
+	channelsFn := state.channels
 	state.mu.RUnlock()
+
 	if bc != nil {
-		bc("budget.threshold.crossed", map[string]any{
-			"level":         level,
-			"budget_id":     budget.ID,
-			"virtual_key":   vkID,
-			"team_id":       teamID,
-			"customer_id":   customerID,
-			"provider":      string(provider),
-			"current_usage": newUsage,
-			"max_limit":     budget.MaxLimit,
-			"reset_duration": budget.ResetDuration,
+		bc("budget.threshold.crossed", payload)
+	}
+	if dispatcher != nil && channelsFn != nil {
+		dispatcher.Send(channelsFn(), alertchannels.Event{
+			Type: "budget.threshold.crossed",
+			Data: payload,
 		})
 	}
 }

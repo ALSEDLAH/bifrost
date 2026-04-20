@@ -1,12 +1,16 @@
-// Budget threshold alerts — GovernancePlugin surface (US8, T055).
+// Budget threshold alerts — GovernancePlugin surface (US8, T055; spec 004).
 //
-// Sibling-file extension per Constitution Principle XI rule 1. Adds one
-// exported method so the HTTP transport can wire the WebSocket
-// broadcaster at boot without touching upstream main.go.
+// Sibling-file extension per Constitution Principle XI rule 1. Exposes
+// two setters so the HTTP transport can wire runtime broadcasters and
+// the alert-channel dispatcher at boot without touching upstream main.go.
 
 package governance
 
-import "github.com/maximhq/bifrost/core/schemas"
+import (
+	"github.com/maximhq/bifrost/core/schemas"
+	"github.com/maximhq/bifrost/framework/alertchannels"
+	tables_enterprise "github.com/maximhq/bifrost/framework/configstore/tables-enterprise"
+)
 
 // SetBudgetThresholdBroadcaster installs the WebSocket event
 // broadcaster used to push budget.threshold.crossed events to the UI.
@@ -16,4 +20,15 @@ func (p *GovernancePlugin) SetBudgetThresholdBroadcaster(fn schemas.EventBroadca
 		return
 	}
 	p.tracker.SetThresholdBroadcaster(fn)
+}
+
+// SetBudgetThresholdAlertDispatcher installs the persistent alert-channel
+// dispatcher so budget-threshold crossings also fan out to user-configured
+// webhook/Slack destinations (spec 004). Safe to call on nil plugin; safe
+// to pass nil dispatcher/fetcher.
+func (p *GovernancePlugin) SetBudgetThresholdAlertDispatcher(d *alertchannels.Dispatcher, channelsFn func() []tables_enterprise.TableAlertChannel) {
+	if p == nil || p.tracker == nil {
+		return
+	}
+	p.tracker.SetAlertDispatcher(d, channelsFn)
 }
