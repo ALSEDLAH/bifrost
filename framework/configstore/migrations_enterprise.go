@@ -31,6 +31,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE005AlertChannels(ctx),
 		migrationE006MCPToolGroups(ctx),
 		migrationE007LargePayloadConfig(ctx),
+		migrationE008LogExportConnectors(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -261,6 +262,25 @@ func migrationE007LargePayloadConfig(ctx context.Context) *migrator.Migration {
 		Rollback: func(tx *gorm.DB) error {
 			tx = tx.WithContext(ctx)
 			return tx.Migrator().DropTable(&tables_enterprise.TableLargePayloadConfig{})
+		},
+	}
+}
+
+// migrationE008LogExportConnectors creates ent_log_export_connectors
+// used by the Datadog / BigQuery connector admin UI (spec 008).
+func migrationE008LogExportConnectors(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E008_log_export_connectors",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TableLogExportConnector{}); err != nil {
+				return fmt.Errorf("auto-migrate log_export_connectors: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TableLogExportConnector{})
 		},
 	}
 }

@@ -1168,6 +1168,9 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// Cluster status (spec 007) — single-node self-report.
 	clusterStatusHandler := handlers.NewClusterStatusHandler(os.Getenv("BIFROST_VERSION"))
 	clusterStatusHandler.RegisterRoutes(s.Router, middlewares...)
+	// Log export connectors CRUD (spec 008). Forwarding plugin is phase 2.
+	logExportHandler := handlers.NewLogExportConnectorsHandler(s.Config.ConfigStore, logger)
+	logExportHandler.RegisterRoutes(s.Router, middlewares...)
 	// Boot-time: seed in-process StreamingDecompressThreshold from the
 	// stored config so the first request after startup respects admin config.
 	if row, _ := s.Config.ConfigStore.GetLargePayloadConfig(context.Background()); row != nil && row.Enabled {

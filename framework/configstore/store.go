@@ -409,6 +409,13 @@ type ConfigStore interface {
 	GetLargePayloadConfig(ctx context.Context) (*tables_enterprise.TableLargePayloadConfig, error)
 	UpsertLargePayloadConfig(ctx context.Context, config *tables_enterprise.TableLargePayloadConfig) error
 
+	// Log Export Connectors (enterprise — spec 008)
+	ListLogExportConnectors(ctx context.Context, typeFilter string) ([]tables_enterprise.TableLogExportConnector, error)
+	GetLogExportConnectorByID(ctx context.Context, id string) (*tables_enterprise.TableLogExportConnector, error)
+	CreateLogExportConnector(ctx context.Context, connector *tables_enterprise.TableLogExportConnector) error
+	UpdateLogExportConnector(ctx context.Context, connector *tables_enterprise.TableLogExportConnector) error
+	DeleteLogExportConnector(ctx context.Context, id string) error
+
 	// DB returns the underlying database connection.
 	DB() *gorm.DB
 
