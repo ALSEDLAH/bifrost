@@ -16,6 +16,7 @@ import {
 	ProviderTokenHistogramResponse,
 	RecalculateCostResponse,
 	TokenHistogramResponse,
+	UserRankingsResponse,
 } from "@/lib/types/logs";
 import { baseApi } from "./baseApi";
 import { RoutingRule } from "@/lib/types/routingRules";
@@ -262,6 +263,20 @@ export const logsApi = baseApi.injectEndpoints({
 			providesTags: ["Logs"],
 		}),
 
+		// Get user rankings with trends (spec 003)
+		getUserRankings: builder.query<
+			UserRankingsResponse,
+			{
+				filters: LogFilters;
+			}
+		>({
+			query: ({ filters }) => ({
+				url: "/logs/user-rankings",
+				params: buildFilterParams(filters),
+			}),
+			providesTags: ["Logs"],
+		}),
+
 		// Get model rankings with trends
 		getModelRankings: builder.query<
 			ModelRankingsResponse,
@@ -351,6 +366,8 @@ export const {
 	useLazyGetLogsProviderCostHistogramQuery,
 	useLazyGetLogsProviderTokenHistogramQuery,
 	useLazyGetLogsProviderLatencyHistogramQuery,
+	useGetUserRankingsQuery,
+	useLazyGetUserRankingsQuery,
 	useLazyGetModelRankingsQuery,
 	useLazyGetDroppedRequestsQuery,
 	useLazyGetAvailableFilterDataQuery,
