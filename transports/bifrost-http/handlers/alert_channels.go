@@ -47,6 +47,43 @@ type alertChannelRequest struct {
 	Enabled *bool           `json:"enabled,omitempty"`
 }
 
+// normalizeConfig validates the inbound config shape against the channel
+// type and returns the canonical JSON string to persist. Accepts either a
+// raw object (preferred) or a JSON-encoded string (for curl convenience)
+// and always stores an unescaped object.
+func normalizeConfig(raw json.RawMessage, channelType string) (string, error) {
+	trimmed := []byte(raw)
+	// Unwrap one level of string encoding if caller double-stringified.
+	if len(trimmed) > 0 && trimmed[0] == '"' {
+		var inner string
+		if err := json.Unmarshal(trimmed, &inner); err != nil {
+			return "", fmt.Errorf("config: invalid JSON string: %w", err)
+		}
+		trimmed = []byte(inner)
+	}
+	switch channelType {
+	case string(alertchannels.ChannelTypeWebhook):
+		var cfg alertchannels.WebhookConfig
+		if err := json.Unmarshal(trimmed, &cfg); err != nil {
+			return "", fmt.Errorf("config: invalid webhook config: %w", err)
+		}
+		if cfg.URL == "" {
+			return "", fmt.Errorf("config.url is required for webhook channels")
+		}
+	case string(alertchannels.ChannelTypeSlack):
+		var cfg alertchannels.SlackConfig
+		if err := json.Unmarshal(trimmed, &cfg); err != nil {
+			return "", fmt.Errorf("config: invalid slack config: %w", err)
+		}
+		if cfg.WebhookURL == "" {
+			return "", fmt.Errorf("config.webhook_url is required for slack channels")
+		}
+	default:
+		return "", fmt.Errorf("unknown channel type %q", channelType)
+	}
+	return string(trimmed), nil
+}
+
 func (h *AlertChannelsHandler) list(ctx *fasthttp.RequestCtx) {
 	channels, err := h.store.ListAlertChannels(ctx)
 	if err != nil {
@@ -73,6 +110,11 @@ func (h *AlertChannelsHandler) create(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusBadRequest, fmt.Sprintf("unsupported type %q (expected webhook|slack)", req.Type))
 		return
 	}
+	configJSON, err := normalizeConfig(req.Config, req.Type)
+	if err != nil {
+		SendError(ctx, fasthttp.StatusBadRequest, err.Error())
+		return
+	}
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
@@ -80,7 +122,7 @@ func (h *AlertChannelsHandler) create(ctx *fasthttp.RequestCtx) {
 	ch := &tables_enterprise.TableAlertChannel{
 		Name:    req.Name,
 		Type:    req.Type,
-		Config:  string(req.Config),
+		Config:  configJSON,
 		Enabled: enabled,
 	}
 	if err := h.store.CreateAlertChannel(ctx, ch); err != nil {
@@ -117,7 +159,12 @@ func (h *AlertChannelsHandler) update(ctx *fasthttp.RequestCtx) {
 		existing.Type = req.Type
 	}
 	if len(req.Config) > 0 {
-		existing.Config = string(req.Config)
+		configJSON, err := normalizeConfig(req.Config, existing.Type)
+		if err != nil {
+			SendError(ctx, fasthttp.StatusBadRequest, err.Error())
+			return
+		}
+		existing.Config = configJSON
 	}
 	if req.Enabled != nil {
 		existing.Enabled = *req.Enabled

@@ -19,10 +19,7 @@ export const alertChannelsApi = baseApi.injectEndpoints({
 			query: (body) => ({
 				url: "/alert-channels",
 				method: "POST",
-				body: {
-					...body,
-					config: JSON.stringify(body.config),
-				},
+				body,
 			}),
 			invalidatesTags: ["AlertChannels"],
 		}),
@@ -30,10 +27,7 @@ export const alertChannelsApi = baseApi.injectEndpoints({
 			query: ({ id, patch }) => ({
 				url: `/alert-channels/${encodeURIComponent(id)}`,
 				method: "PATCH",
-				body: {
-					...patch,
-					...(patch.config !== undefined ? { config: JSON.stringify(patch.config) } : {}),
-				},
+				body: patch,
 			}),
 			invalidatesTags: ["AlertChannels"],
 		}),
