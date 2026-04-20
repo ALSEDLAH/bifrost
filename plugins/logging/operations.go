@@ -980,6 +980,12 @@ func (p *LoggerPlugin) GetModelRankings(ctx context.Context, filters logstore.Se
 	return p.store.GetModelRankings(ctx, filters)
 }
 
+// GetUserRankings returns users ranked by usage with trend comparison
+// to the immediately-preceding period of equal length (spec 003 T004).
+func (p *LoggerPlugin) GetUserRankings(ctx context.Context, filters logstore.SearchFilters) (*logstore.UserRankingResult, error) {
+	return p.store.GetUserRankings(ctx, filters)
+}
+
 // GetAvailableModels returns all unique models from logs.
 // Uses DISTINCT to avoid loading all rows (28K+) when only unique values are needed.
 func (p *LoggerPlugin) GetAvailableModels(ctx context.Context) []string {

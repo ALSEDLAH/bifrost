@@ -64,6 +64,9 @@ type LogManager interface {
 	// GetModelRankings returns models ranked by usage with trend comparison
 	GetModelRankings(ctx context.Context, filters *logstore.SearchFilters) (*logstore.ModelRankingResult, error)
 
+	// GetUserRankings returns users ranked by usage with trend comparison (spec 003)
+	GetUserRankings(ctx context.Context, filters *logstore.SearchFilters) (*logstore.UserRankingResult, error)
+
 	// Get the number of dropped requests
 	GetDroppedRequests(ctx context.Context) int64
 
@@ -248,6 +251,13 @@ func (p *PluginLogManager) GetModelRankings(ctx context.Context, filters *logsto
 		return nil, fmt.Errorf("filters cannot be nil")
 	}
 	return p.plugin.GetModelRankings(ctx, *filters)
+}
+
+func (p *PluginLogManager) GetUserRankings(ctx context.Context, filters *logstore.SearchFilters) (*logstore.UserRankingResult, error) {
+	if filters == nil {
+		return nil, fmt.Errorf("filters cannot be nil")
+	}
+	return p.plugin.GetUserRankings(ctx, *filters)
 }
 
 func (p *PluginLogManager) GetDroppedRequests(ctx context.Context) int64 {

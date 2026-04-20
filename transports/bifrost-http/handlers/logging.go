@@ -86,6 +86,7 @@ func (h *LoggingHandler) RegisterRoutes(r *router.Router, middlewares ...schemas
 	r.GET("/api/logs/dropped", lib.ChainMiddlewares(h.getDroppedRequests, middlewares...))
 	r.GET("/api/logs/filterdata", lib.ChainMiddlewares(h.getAvailableFilterData, middlewares...))
 	r.GET("/api/logs/rankings", lib.ChainMiddlewares(h.getModelRankings, middlewares...))
+	r.GET("/api/logs/user-rankings", lib.ChainMiddlewares(h.getUserRankings, middlewares...))
 	r.DELETE("/api/logs", lib.ChainMiddlewares(h.deleteLogs, middlewares...))
 	r.POST("/api/logs/recalculate-cost", lib.ChainMiddlewares(h.recalculateLogCosts, middlewares...))
 
@@ -888,6 +889,22 @@ func (h *LoggingHandler) getModelRankings(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		logger.Error("failed to get model rankings: %v", err)
 		SendError(ctx, fasthttp.StatusInternalServerError, fmt.Sprintf("Model rankings calculation failed: %v", err))
+		return
+	}
+
+	SendJSON(ctx, result)
+}
+
+// getUserRankings handles GET /api/logs/user-rankings (spec 003 T005) —
+// per-user request/token/cost totals over the selected time range
+// with trend comparison to the immediately-preceding period.
+func (h *LoggingHandler) getUserRankings(ctx *fasthttp.RequestCtx) {
+	filters := parseHistogramFilters(ctx)
+
+	result, err := h.logManager.GetUserRankings(ctx, filters)
+	if err != nil {
+		logger.Error("failed to get user rankings: %v", err)
+		SendError(ctx, fasthttp.StatusInternalServerError, fmt.Sprintf("User rankings calculation failed: %v", err))
 		return
 	}
 
