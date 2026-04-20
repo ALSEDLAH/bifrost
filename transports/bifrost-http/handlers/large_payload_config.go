@@ -91,5 +91,8 @@ func (h *LargePayloadConfigHandler) update(ctx *fasthttp.RequestCtx) {
 	if h.config != nil && req.Enabled {
 		h.config.StreamingDecompressThreshold = req.RequestThresholdBytes
 	}
+	// Invalidate the per-request middleware's cache so response-threshold
+	// and prefetch-size take effect immediately (spec 006 phase 2 FR-004).
+	InvalidateLargePayloadCache()
 	SendJSON(ctx, req)
 }

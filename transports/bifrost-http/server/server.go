@@ -1520,6 +1520,10 @@ func (s *BifrostHTTPServer) Bootstrap(ctx context.Context) error {
 	// runs AFTER transport post-hooks (capturing HTTPTransportPostHook plugin logs).
 	// Order: Tracing.pre → TransportInterceptor.pre → handler → TransportInterceptor.post → Tracing.defer
 	inferenceMiddlewares = append([]schemas.BifrostHTTPMiddleware{handlers.TransportInterceptorMiddleware(s.Config)}, inferenceMiddlewares...)
+	// Stamp admin-configured response threshold + prefetch size into
+	// every inference request's user-values (spec 006 phase 2). Must
+	// run before TransportInterceptor so plugins see the keys.
+	inferenceMiddlewares = append([]schemas.BifrostHTTPMiddleware{handlers.LargePayloadMiddleware(s.Config.ConfigStore)}, inferenceMiddlewares...)
 	inferenceMiddlewares = append([]schemas.BifrostHTTPMiddleware{s.TracingMiddleware.Middleware()}, inferenceMiddlewares...)
 
 	err = s.RegisterInferenceRoutes(s.Ctx, inferenceMiddlewares...)
