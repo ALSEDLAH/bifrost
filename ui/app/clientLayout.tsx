@@ -4,6 +4,7 @@ import ProgressProvider from "@/components/progressBar";
 import Sidebar from "@/components/sidebar";
 import { ThemeProvider } from "@/components/themeProvider";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { useBudgetThresholdAlerts } from "@/hooks/useBudgetThresholdAlerts";
 import { useStoreSync } from "@/hooks/useStoreSync";
 import { WebSocketProvider } from "@/hooks/useWebSocket";
 import { getErrorMessage, ReduxProvider, useGetCoreConfigQuery } from "@/lib/store";
@@ -25,6 +26,7 @@ const DevProfiler = () => (
 
 function StoreSyncInitializer() {
 	useStoreSync();
+	useBudgetThresholdAlerts();
 	return null;
 }
 

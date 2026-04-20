@@ -139,6 +139,8 @@ func (t *UsageTracker) UpdateUsage(ctx context.Context, update *UsageUpdate) {
 		if err := t.store.UpdateVirtualKeyBudgetUsageInMemory(ctx, vk, update.Provider, update.Cost); err != nil {
 			t.logger.Error("failed to update budget hierarchy atomically for VK %s: %v", vk.ID, err)
 		}
+		// Enterprise US8 threshold alerts — see tracker_thresholds.go (sibling).
+		t.afterBudgetUpdate(ctx, vk, update.Provider, update.Cost)
 	}
 }
 
