@@ -23,6 +23,7 @@ import (
 	"github.com/maximhq/bifrost/framework/logstore"
 	dynamicPlugins "github.com/maximhq/bifrost/framework/plugins"
 	"github.com/maximhq/bifrost/framework/tracing"
+	"github.com/maximhq/bifrost/plugins/audit"
 	"github.com/maximhq/bifrost/plugins/governance"
 	"github.com/maximhq/bifrost/plugins/logging"
 	"github.com/maximhq/bifrost/plugins/prompts"
@@ -1323,6 +1324,16 @@ func (s *BifrostHTTPServer) Bootstrap(ctx context.Context) error {
 	if s.Config.LogsStore != nil {
 		if migErr := logstore.RegisterEnterpriseMigrations(ctx, s.Config.ConfigStore.DB()); migErr != nil {
 			logger.Warn("enterprise logstore migrations: %v (non-fatal)", migErr)
+		}
+	}
+
+	// Enterprise US4 (T026, C2 remediation) — register audit plugin as the
+	// default audit.Emit sink so admin handlers can write entries synchronously.
+	// Kept non-fatal: if the sink fails to register, audit.Emit returns
+	// ErrNoSink and callers surface a 500 rather than silently swallowing.
+	if s.Config.ConfigStore != nil {
+		if _, auditErr := audit.Init(ctx, s.Config.ConfigStore.DB(), logger, audit.Config{}); auditErr != nil {
+			logger.Warn("audit plugin init: %v (non-fatal; emits will fail with ErrNoSink)", auditErr)
 		}
 	}
 

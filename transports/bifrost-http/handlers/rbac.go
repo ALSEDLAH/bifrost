@@ -172,6 +172,7 @@ func (h *RBACHandler) createRole(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, "failed to create role")
 		return
 	}
+	emitAudit(ctx, orgID, "role.create", "role", role.ID, nil, roleToJSON(*role))
 	SendJSONWithStatus(ctx, map[string]any{"role": roleToJSON(*role)}, fasthttp.StatusCreated)
 }
 
@@ -186,6 +187,7 @@ func (h *RBACHandler) updateRole(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusBadRequest, "invalid request body")
 		return
 	}
+	before, _ := h.roles.GetRole(ctx, id)
 	role, err := h.roles.UpdateRole(ctx, id, tenancy.UpdateRoleInput{Name: req.Name, Scopes: req.Scopes})
 	if err != nil {
 		switch {
@@ -198,6 +200,11 @@ func (h *RBACHandler) updateRole(ctx *fasthttp.RequestCtx) {
 		}
 		return
 	}
+	var beforeJSON any
+	if before != nil {
+		beforeJSON = roleToJSON(*before)
+	}
+	emitAudit(ctx, role.OrganizationID, "role.update", "role", role.ID, beforeJSON, roleToJSON(*role))
 	SendJSON(ctx, map[string]any{"role": roleToJSON(*role)})
 }
 
@@ -207,6 +214,7 @@ func (h *RBACHandler) deleteRole(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusBadRequest, "role id required")
 		return
 	}
+	before, _ := h.roles.GetRole(ctx, id)
 	if err := h.roles.DeleteRole(ctx, id); err != nil {
 		switch {
 		case errors.Is(err, tenancy.ErrRoleNotFound):
@@ -218,6 +226,13 @@ func (h *RBACHandler) deleteRole(ctx *fasthttp.RequestCtx) {
 		}
 		return
 	}
+	orgID := ""
+	var beforeJSON any
+	if before != nil {
+		orgID = before.OrganizationID
+		beforeJSON = roleToJSON(*before)
+	}
+	emitAudit(ctx, orgID, "role.delete", "role", id, beforeJSON, nil)
 	SendJSON(ctx, map[string]any{"deleted": true})
 }
 
@@ -303,6 +318,7 @@ func (h *RBACHandler) createUser(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, "failed to create user: "+err.Error())
 		return
 	}
+	emitAudit(ctx, orgID, "user.create", "user", u.ID, nil, userToJSON(u, nil))
 	SendJSONWithStatus(ctx, map[string]any{"user": userToJSON(u, nil)}, fasthttp.StatusCreated)
 }
 
@@ -324,6 +340,8 @@ func (h *RBACHandler) updateUser(ctx *fasthttp.RequestCtx) {
 	if req.Status != nil {
 		updates["status"] = *req.Status
 	}
+	var before tables_enterprise.TableUser
+	_ = h.db.WithContext(ctx).Where("id = ?", id).First(&before).Error
 	if err := h.db.WithContext(ctx).Model(&tables_enterprise.TableUser{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 		SendError(ctx, fasthttp.StatusInternalServerError, "failed to update user")
 		return
@@ -335,6 +353,7 @@ func (h *RBACHandler) updateUser(ctx *fasthttp.RequestCtx) {
 	}
 	var assigns []tables_enterprise.TableUserRoleAssignment
 	_ = h.db.WithContext(ctx).Where("user_id = ?", u.ID).Find(&assigns).Error
+	emitAudit(ctx, u.OrganizationID, "user.update", "user", u.ID, userToJSON(before, nil), userToJSON(u, assigns))
 	SendJSON(ctx, map[string]any{"user": userToJSON(u, assigns)})
 }
 
@@ -344,6 +363,8 @@ func (h *RBACHandler) deleteUser(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusBadRequest, "user id required")
 		return
 	}
+	var before tables_enterprise.TableUser
+	_ = h.db.WithContext(ctx).Where("id = ?", id).First(&before).Error
 	if err := h.db.WithContext(ctx).Where("user_id = ?", id).Delete(&tables_enterprise.TableUserRoleAssignment{}).Error; err != nil {
 		SendError(ctx, fasthttp.StatusInternalServerError, "failed to delete user assignments")
 		return
@@ -352,6 +373,7 @@ func (h *RBACHandler) deleteUser(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, "failed to delete user")
 		return
 	}
+	emitAudit(ctx, before.OrganizationID, "user.delete", "user", id, userToJSON(before, nil), nil)
 	SendJSON(ctx, map[string]any{"deleted": true})
 }
 
@@ -414,6 +436,8 @@ func (h *RBACHandler) assignRole(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, "failed to assign role: "+err.Error())
 		return
 	}
+	orgID, _ := h.defaultOrgID()
+	emitAudit(ctx, orgID, "role.assign", "role_assignment", a.ID, nil, a)
 	SendJSONWithStatus(ctx, map[string]any{"assignment": a}, fasthttp.StatusCreated)
 }
 
@@ -427,5 +451,7 @@ func (h *RBACHandler) unassignRole(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, "failed to unassign role")
 		return
 	}
+	orgID, _ := h.defaultOrgID()
+	emitAudit(ctx, orgID, "role.unassign", "role_assignment", id, nil, nil)
 	SendJSON(ctx, map[string]any{"deleted": true})
 }
