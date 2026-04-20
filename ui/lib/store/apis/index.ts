@@ -19,3 +19,4 @@ export * from "./clusterApi";
 export * from "./logExportConnectorsApi";
 export * from "./scimConfigApi";
 export * from "./guardrailsApi";
+export * from "./promptDeploymentsApi";

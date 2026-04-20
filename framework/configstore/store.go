@@ -434,6 +434,11 @@ type ConfigStore interface {
 	DeleteGuardrailRule(ctx context.Context, id string) error
 	CountGuardrailRulesByProvider(ctx context.Context, providerID string) (int64, error)
 
+	// Prompt Deployments (enterprise — spec 011)
+	ListPromptDeployments(ctx context.Context, promptID string) ([]tables_enterprise.TablePromptDeployment, error)
+	UpsertPromptDeployment(ctx context.Context, d *tables_enterprise.TablePromptDeployment) error
+	DeletePromptDeployment(ctx context.Context, promptID, label string) error
+
 	// DB returns the underlying database connection.
 	DB() *gorm.DB
 

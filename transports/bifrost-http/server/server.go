@@ -1177,6 +1177,9 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// Guardrails admin CRUD (spec 010). Runtime enforcement is phase 2.
 	guardrailsHandler := handlers.NewGuardrailsHandler(s.Config.ConfigStore, logger)
 	guardrailsHandler.RegisterRoutes(s.Router, middlewares...)
+	// Prompt deployments (spec 011). Runtime resolution is phase 2.
+	promptDeploymentsHandler := handlers.NewPromptDeploymentsHandler(s.Config.ConfigStore, logger)
+	promptDeploymentsHandler.RegisterRoutes(s.Router, middlewares...)
 	// Boot-time: seed in-process StreamingDecompressThreshold from the
 	// stored config so the first request after startup respects admin config.
 	if row, _ := s.Config.ConfigStore.GetLargePayloadConfig(context.Background()); row != nil && row.Enabled {

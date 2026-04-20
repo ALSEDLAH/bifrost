@@ -1,26 +1,48 @@
-// Enterprise stub for Prompt Deployment Accordion Item (spec 002, US2).
-// Audit verdict: descoped — see specs/002-expose-hidden-enterprise-stubs/research.md.
+// Deployments accordion item, embedded in the prompt detail sidebar (spec 011).
+// Mirrors the OSS fallback signature so callers (clientSettingsView etc.)
+// compile unchanged.
 
-import FeatureStatusPanel from "@enterprise/components/panels/featureStatusPanel";
+"use client";
+
+import { usePromptContext } from "@/components/prompts/context";
+import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
+import PromptDeploymentView from "./promptDeploymentView";
 
 export type SettingsSidebarSection = "parameters" | "deployments";
 
-function PromptDeploymentsAccordionItem(_props: { activeSection: SettingsSidebarSection | undefined }) {
+export function PromptDeploymentsAccordionItem({
+	activeSection,
+}: {
+	activeSection: SettingsSidebarSection | undefined;
+}) {
+	const { selectedPromptId } = usePromptContext();
+	if (!selectedPromptId) {
+		return null;
+	}
+
+	const deploymentsOpen = activeSection === "deployments";
+
 	return (
-		<FeatureStatusPanel
-			title="Prompt Deployment Accordion Item"
-			description="Accordion companion for the Prompt Deployments editor. Shipping alongside that feature."
-			status="descoped"
-			trackingLink={{
-				href: "/specs/001-enterprise-parity/spec.md#sr-01-reuse-over-new",
-				label: "SR-01 · US14-deployments row",
-			}}
-		/>
+		<AccordionItem
+			value="deployments"
+			className={cn(
+				"border-border/60 flex min-h-0 flex-col border-b-0 border-t pt-1",
+				deploymentsOpen ? "min-h-0 grow overflow-hidden" : "shrink-0 grow-0",
+			)}
+		>
+			<AccordionTrigger
+				data-testid="prompt-deployments-trigger"
+				className="text-muted-foreground w-full min-w-0 shrink-0 py-3 pr-1 text-xs font-medium uppercase hover:no-underline [&[data-state=open]>svg]:rotate-180"
+			>
+				<span className="min-w-0 flex-1 text-left font-semibold">Deployments</span>
+			</AccordionTrigger>
+			<AccordionContent
+				containerClassName="data-[state=open]:flex data-[state=open]:min-h-0 data-[state=open]:flex-1 data-[state=open]:flex-col"
+				className="min-h-0 flex-1 overflow-y-auto pb-2 pt-0"
+			>
+				<PromptDeploymentView omitTitle />
+			</AccordionContent>
+		</AccordionItem>
 	);
 }
-
-// Preserve both the default export and the named export that the
-// existing caller (components/prompts/fragments/settingsPanel.tsx)
-// imports. Harmless — same component either way.
-export { PromptDeploymentsAccordionItem };
-export default PromptDeploymentsAccordionItem;

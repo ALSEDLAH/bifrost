@@ -34,6 +34,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE008LogExportConnectors(ctx),
 		migrationE009SCIMConfig(ctx),
 		migrationE010Guardrails(ctx),
+		migrationE011PromptDeployments(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -332,6 +333,25 @@ func migrationE010Guardrails(ctx context.Context) *migrator.Migration {
 				}
 			}
 			return nil
+		},
+	}
+}
+
+// migrationE011PromptDeployments creates ent_prompt_deployments used
+// to label specific prompt versions as production / staging (spec 011).
+func migrationE011PromptDeployments(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E011_prompt_deployments",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TablePromptDeployment{}); err != nil {
+				return fmt.Errorf("auto-migrate prompt_deployments: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TablePromptDeployment{})
 		},
 	}
 }
