@@ -16,11 +16,12 @@ import (
 
 type PromptDeploymentsHandler struct {
 	store  configstore.ConfigStore
+	cache  *configstore.ProductionDeploymentCache
 	logger schemas.Logger
 }
 
-func NewPromptDeploymentsHandler(store configstore.ConfigStore, logger schemas.Logger) *PromptDeploymentsHandler {
-	return &PromptDeploymentsHandler{store: store, logger: logger}
+func NewPromptDeploymentsHandler(store configstore.ConfigStore, cache *configstore.ProductionDeploymentCache, logger schemas.Logger) *PromptDeploymentsHandler {
+	return &PromptDeploymentsHandler{store: store, cache: cache, logger: logger}
 }
 
 func (h *PromptDeploymentsHandler) RegisterRoutes(r *router.Router, middlewares ...schemas.BifrostHTTPMiddleware) {
@@ -75,6 +76,12 @@ func (h *PromptDeploymentsHandler) upsert(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
 	}
+	// Spec 014 FR-005: drop the runtime resolver cache so the new
+	// production label takes effect in <1s rather than waiting for
+	// the 30s TTL.
+	if label == "production" {
+		h.cache.Invalidate()
+	}
 	SendJSON(ctx, row)
 }
 
@@ -84,6 +91,9 @@ func (h *PromptDeploymentsHandler) delete(ctx *fasthttp.RequestCtx) {
 	if err := h.store.DeletePromptDeployment(ctx, promptID, label); err != nil {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
+	}
+	if label == "production" {
+		h.cache.Invalidate()
 	}
 	ctx.SetStatusCode(fasthttp.StatusNoContent)
 }

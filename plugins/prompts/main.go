@@ -77,6 +77,11 @@ func (r *headerResolver) Resolve(ctx *schemas.BifrostContext, req *schemas.Bifro
 //   - mu: protects promptsByID and versionsByPromptAndNumber
 //   - promptsByID: prompt ID → prompt row (includes LatestVersion when using “latest”)
 //   - versionsByPromptAndNumber: prompt ID → version number → version row
+// DeploymentLookup returns the version ID carrying the `production`
+// label for the given prompt ID, or 0 if no such deployment exists
+// (spec 014). Wired by the HTTP transport at startup.
+type DeploymentLookup func(promptID string) uint
+
 type Plugin struct {
 	store    InMemoryStore
 	logger   schemas.Logger
@@ -85,6 +90,22 @@ type Plugin struct {
 	mu                        sync.RWMutex
 	promptsByID               map[string]*configstoreTables.TablePrompt
 	versionsByPromptAndNumber map[string]map[int]*configstoreTables.TablePromptVersion
+
+	// deploymentLookup optionally resolves `production` label → version id
+	// when the caller didn't pin an explicit version (spec 014).
+	deploymentLookup DeploymentLookup
+}
+
+// SetDeploymentLookup installs a production-label resolver so the
+// prompts plugin will route unpinned requests through the labeled
+// version (spec 014). Pass nil to disable. Safe on nil plugin.
+func (p *Plugin) SetDeploymentLookup(fn DeploymentLookup) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	p.deploymentLookup = fn
+	p.mu.Unlock()
 }
 
 // Init constructs a Plugin using the default header-based resolver (x-bf-prompt-id / x-bf-prompt-version).
@@ -464,6 +485,25 @@ func (p *Plugin) resolveVersion(promptID string, versionNumber int) (
 		}
 		return prompt, v, true
 	}
+
+	// Spec 014: consult the production deployment label before falling
+	// back to is_latest. The lookup is cached + cheap; stale labels
+	// (version id not in cache) fall through to latest with a Warn.
+	if p.deploymentLookup != nil {
+		if wantVersionID := p.deploymentLookup(promptID); wantVersionID != 0 {
+			if byNumber, ok := p.versionsByPromptAndNumber[promptID]; ok {
+				for _, v := range byNumber {
+					if v != nil && v.ID == wantVersionID {
+						return prompt, v, true
+					}
+				}
+			}
+			if p.logger != nil {
+				p.logger.Warn("prompts plugin: production deployment version_id=%d not found in cache for prompt %s; falling back to latest", wantVersionID, promptID)
+			}
+		}
+	}
+
 	return prompt, prompt.LatestVersion, true
 }
 

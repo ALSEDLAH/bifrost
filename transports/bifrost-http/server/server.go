@@ -1178,9 +1178,15 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// Guardrails admin CRUD (spec 010). Runtime enforcement is phase 2.
 	guardrailsHandler := handlers.NewGuardrailsHandler(s.Config.ConfigStore, logger)
 	guardrailsHandler.RegisterRoutes(s.Router, middlewares...)
-	// Prompt deployments (spec 011). Runtime resolution is phase 2.
-	promptDeploymentsHandler := handlers.NewPromptDeploymentsHandler(s.Config.ConfigStore, logger)
+	// Prompt deployments (spec 011 config + spec 014 runtime resolution).
+	productionDeploymentCache := configstore.NewProductionDeploymentCache(s.Config.ConfigStore)
+	promptDeploymentsHandler := handlers.NewPromptDeploymentsHandler(s.Config.ConfigStore, productionDeploymentCache, logger)
 	promptDeploymentsHandler.RegisterRoutes(s.Router, middlewares...)
+	// Wire the cache's Lookup into the prompts plugin so unpinned
+	// requests resolve to the production-labeled version (spec 014).
+	if promptsPlugin, err := lib.FindPluginAs[*prompts.Plugin](s.Config, s.getPromptsPluginName()); err == nil && promptsPlugin != nil {
+		promptsPlugin.SetDeploymentLookup(productionDeploymentCache.Lookup)
+	}
 	// Adaptive routing tracker (spec 012 phase 1 — observe only).
 	adaptiveTracker := adaptiverouting.New(s.Config.LogsStore, logger)
 	adaptiveTracker.Start(s.Ctx)
