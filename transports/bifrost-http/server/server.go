@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	bifrost "github.com/maximhq/bifrost/core"
 	"github.com/maximhq/bifrost/core/schemas"
+	"github.com/maximhq/bifrost/framework/adaptiverouting"
 	"github.com/maximhq/bifrost/framework/alertchannels"
 	"github.com/maximhq/bifrost/framework/configstore"
 	"github.com/maximhq/bifrost/framework/configstore/tables"
@@ -1180,6 +1181,11 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// Prompt deployments (spec 011). Runtime resolution is phase 2.
 	promptDeploymentsHandler := handlers.NewPromptDeploymentsHandler(s.Config.ConfigStore, logger)
 	promptDeploymentsHandler.RegisterRoutes(s.Router, middlewares...)
+	// Adaptive routing tracker (spec 012 phase 1 — observe only).
+	adaptiveTracker := adaptiverouting.New(s.Config.LogsStore, logger)
+	adaptiveTracker.Start(s.Ctx)
+	adaptiveHandler := handlers.NewAdaptiveRoutingHandler(adaptiveTracker)
+	adaptiveHandler.RegisterRoutes(s.Router, middlewares...)
 	// Boot-time: seed in-process StreamingDecompressThreshold from the
 	// stored config so the first request after startup respects admin config.
 	if row, _ := s.Config.ConfigStore.GetLargePayloadConfig(context.Background()); row != nil && row.Enabled {

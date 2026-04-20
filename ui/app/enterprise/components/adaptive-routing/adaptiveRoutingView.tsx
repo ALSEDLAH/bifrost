@@ -15,11 +15,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getErrorMessage } from "@/lib/store";
+import { useGetAdaptiveRoutingStatusQuery } from "@/lib/store/apis/adaptiveRoutingApi";
 import { useGetRoutingRulesQuery } from "@/lib/store/apis/routingRulesApi";
+import type { CircuitState } from "@/lib/types/adaptiveRouting";
 import type { RoutingRule, RoutingTarget } from "@/lib/types/routingRules";
 import { RbacOperation, RbacResource, useRbac } from "@enterprise/lib";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink, InfoIcon, SplitSquareHorizontal } from "lucide-react";
+import { ExternalLink, HeartPulse, InfoIcon, SplitSquareHorizontal } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -36,12 +38,28 @@ function weightPct(t: RoutingTarget): string {
 	return `${pct}%`;
 }
 
+function circuitBadge(state: CircuitState) {
+	switch (state) {
+		case "open":
+			return <Badge variant="destructive">open</Badge>;
+		case "half-open":
+			return <Badge variant="outline" className="border-amber-500/60 text-amber-700 dark:text-amber-400">half-open</Badge>;
+		default:
+			return <Badge variant="outline" className="border-emerald-500/60 text-emerald-700 dark:text-emerald-400">closed</Badge>;
+	}
+}
+
 export default function AdaptiveRoutingView() {
 	const hasView = useRbac(RbacResource.AdaptiveRouter, RbacOperation.View);
 	const hasGovernanceView = useRbac(RbacResource.RoutingRules, RbacOperation.View);
 	const canView = hasView || hasGovernanceView;
 
 	const { data, isLoading, error } = useGetRoutingRulesQuery(undefined, { skip: !canView });
+	const { data: healthData, isLoading: isHealthLoading } = useGetAdaptiveRoutingStatusQuery(undefined, {
+		skip: !canView,
+		pollingInterval: 10_000,
+	});
+	const healthEntries = useMemo(() => healthData?.providers ?? [], [healthData]);
 
 	// Adaptive routing focuses on rules with *more than one* target — the
 	// interesting-for-canary subset. Single-target rules are pure pins
@@ -87,6 +105,67 @@ export default function AdaptiveRoutingView() {
 					Single-target rules are pure pins and don&apos;t appear here.
 				</AlertDescription>
 			</Alert>
+
+			<div>
+				<div className="mb-2 flex items-center gap-2">
+					<HeartPulse className="h-4 w-4" />
+					<h3 className="text-base font-semibold">Provider health (last {healthData?.window_duration ?? "5m0s"})</h3>
+					<span className="text-muted-foreground text-xs">
+						refresh {healthData?.refresh_interval ?? "10s"} · source: inference log stream
+					</span>
+				</div>
+				<div className="rounded-md border" data-testid="adaptive-routing-health-matrix">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Provider · Model</TableHead>
+								<TableHead>Circuit</TableHead>
+								<TableHead className="text-right">EWMA latency</TableHead>
+								<TableHead className="text-right">Success rate</TableHead>
+								<TableHead className="text-right">Requests</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{isHealthLoading ? (
+								<TableRow>
+									<TableCell colSpan={5} className="text-muted-foreground py-6 text-center text-sm">
+										Loading health signals…
+									</TableCell>
+								</TableRow>
+							) : healthEntries.length === 0 ? (
+								<TableRow>
+									<TableCell colSpan={5} className="text-muted-foreground py-6 text-center text-sm">
+										No inference traffic in the window yet — health signals appear once requests flow.
+									</TableCell>
+								</TableRow>
+							) : (
+								healthEntries.map((h) => (
+									<TableRow
+										key={`${h.provider}::${h.model}`}
+										data-testid={`adaptive-routing-health-${h.provider}-${h.model}`}
+									>
+										<TableCell className="font-medium">
+											<span>{h.provider}</span>
+											<span className="text-muted-foreground"> / {h.model}</span>
+										</TableCell>
+										<TableCell>{circuitBadge(h.circuit_state)}</TableCell>
+										<TableCell className="text-right font-mono text-sm">
+											{Math.round(h.ewma_latency_ms)} ms
+										</TableCell>
+										<TableCell className="text-right font-mono text-sm">
+											{(h.success_rate * 100).toFixed(1)}%
+										</TableCell>
+										<TableCell className="text-right font-mono text-sm">{h.total_requests}</TableCell>
+									</TableRow>
+								))
+							)}
+						</TableBody>
+					</Table>
+				</div>
+				<p className="text-muted-foreground mt-1 text-xs">
+					Phase 1 displays the signal only. Feeding circuit state into target selection is tracked as phase 2.
+				</p>
+			</div>
 
 			<div className="rounded-md border">
 				<Table>

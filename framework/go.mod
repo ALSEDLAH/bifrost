@@ -1,6 +1,6 @@
 module github.com/maximhq/bifrost/framework
 
-go 1.26.1
+go 1.26.2
 
 require (
 	cloud.google.com/go/storage v1.61.3
@@ -10,6 +10,7 @@ require (
 	github.com/pinecone-io/go-pinecone/v5 v5.3.0
 	github.com/qdrant/go-client v1.16.2
 	github.com/redis/go-redis/v9 v9.17.2
+	github.com/sony/gobreaker/v2 v2.0.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.18.0
 	github.com/weaviate/weaviate v1.36.5
