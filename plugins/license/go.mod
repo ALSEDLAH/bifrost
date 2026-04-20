@@ -1,4 +1,4 @@
-module github.com/maximhq/bifrost/plugins/license
+module github.com/ALSEDLAH/bifrost/plugins/license
 
 go 1.26.1
 

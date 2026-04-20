@@ -48,6 +48,10 @@ Mark ✅ pass, ⚠ partial (requires Complexity Tracking entry below), or ❌ fa
 | IX | Docs & Schema Sync — `config.schema.json` + MDX + changelog in same PR | | |
 | X | Dependency Hierarchy — no reverse imports; plugin modules independent | | |
 | XI | Upstream-Mergeability — additive-by-sibling, E###_ migrations, schema overlay, hook points, drift-watched | | |
+| XII | Code Quality — gofmt, golangci-lint, tsc, design system components, GoDoc | | |
+| XIII | Testing Discipline — unit + integration (real deps) + E2E (Playwright), no flaky tests | | |
+| XIV | UX Consistency — existing layout/components/RTK Query/RBAC gating/data-testid/loading states | | |
+| XV | Performance Budget — <1ms p50 hot-path, <15s boot, <2s UI paint, no N+1, async observability | | |
 
 Any ⚠ or ❌ row MUST have a corresponding row in **Complexity Tracking**
 below with the reason it cannot be avoided and the simpler alternative that
