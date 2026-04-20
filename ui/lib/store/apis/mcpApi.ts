@@ -127,6 +127,15 @@ export const mcpApi = baseApi.injectEndpoints({
 			providesTags: (result, error, id) => [{ type: "OAuth2Config", id }],
 		}),
 
+		// Revoke OAuth config (revoke token + delete config)
+		revokeOAuthConfig: builder.mutation<{ message: string }, string>({
+			query: (oauthConfigId) => ({
+				url: `/oauth/config/${oauthConfigId}`,
+				method: "DELETE",
+			}),
+			invalidatesTags: (_r, _e, id) => [{ type: "OAuth2Config", id }, "MCPClients"],
+		}),
+
 		// Complete OAuth flow for MCP client
 		completeOAuthFlow: builder.mutation<{ status: string; message: string }, string>({
 			query: (oauthConfigId) => ({
@@ -145,6 +154,8 @@ export const {
 	useDeleteMCPClientMutation,
 	useReconnectMCPClientMutation,
 	useLazyGetMCPClientsQuery,
+	useGetOAuthConfigStatusQuery,
 	useLazyGetOAuthConfigStatusQuery,
+	useRevokeOAuthConfigMutation,
 	useCompleteOAuthFlowMutation,
 } = mcpApi;

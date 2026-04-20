@@ -238,10 +238,10 @@ If ever revived as its own spec: it would be a new feature with its own plan/tas
 
 **Goal**: Fill remaining 4 platform stubs.
 
-- [ ] T074 [P] [US30] Fill `ui/app/enterprise/components/mcp-tool-groups/mcpToolGroups.tsx` — MCP tool group management wrapping existing `/api/mcp/clients` CRUD
-- [ ] T075 [P] [US30] Fill `ui/app/enterprise/components/mcp-auth-config/mcpAuthConfigView.tsx` — MCP OAuth credential config UI
-- [ ] T076 [P] [US30] Fill `ui/app/enterprise/components/large-payload/largePayloadSettingsFragment.tsx` — streaming threshold settings
-- [ ] T077 [US30] Fill proxy/SCIM section in `ui/app/workspace/config/views/proxyView.tsx` — replace "available in Enterprise" placeholder
+- [~] T074 [P] [US30] DESCOPED 2026-04-20 — was: MCP tool group management. `TableMCPClient` has no `tool_group_id` / grouping column and no `/api/mcp/tool-groups` endpoint; tool-groups is a net-new concept per SR-01, not a reuse of `/api/mcp/clients` CRUD. Fallback ContactUsView stays.
+- [X] T075 [P] [US30] Fill `ui/app/enterprise/components/mcp-auth-config/mcpAuthConfigView.tsx` — surfaces existing `/api/mcp/clients` (filtered to `auth_type=oauth|per_user_oauth`) joined with `/api/oauth/config/:id/status` for status + token expiry + scopes; revoke via DELETE `/api/oauth/config/:id`. Zero new backend.
+- [~] T076 [P] [US30] DESCOPED 2026-04-20 — was: large-payload streaming threshold settings. No `/api/large-payload-config` endpoint exists; `largePayloadApi` is a no-op fallback that returns undefined. Filling the fragment would require net-new persistence per SR-01. Fallback null-render stays; thresholds remain server-config-only.
+- [X] T077 [US30] Unlock SCIM section in `ui/app/workspace/config/views/proxyView.tsx` — already functional: the `IS_ENTERPRISE=true` flag flipped by `npm run build-enterprise` already toggles the SCIM switch + `enable_for_scim` form field on (and hides the "available in Enterprise" alert). No code change needed; verified in the running enterprise build.
 
 **Checkpoint**: US30 complete. All 4 platform stubs filled.
 
