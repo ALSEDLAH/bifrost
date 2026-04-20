@@ -53,9 +53,9 @@ description: "Task list for Bifrost Enterprise Parity — enable, fill, and conn
 
 **⚠️ CRITICAL**: No user story UI work can begin until RBAC context is real (not always-true fallback).
 
-- [X] T020 Rewrite `framework/tenancy/scopes.go` — 29 RbacResource × 6 RbacOperation matching `ui/app/_fallbacks/enterprise/lib/contexts/rbacContext.tsx` enums
+- [X] T020 Rewrite `framework/tenancy/scopes.go` — 24 RbacResource × 6 RbacOperation matching `ui/app/_fallbacks/enterprise/lib/contexts/rbacContext.tsx` enums
 - [X] T021 Update `framework/tenancy/roles.go` — match new 29×6 scope model; update CreateRole/UpdateRole/ParseScopeJSON
-- [X] T022 Update built-in role seed data in `framework/configstore/migrations_enterprise.go` — Owner/Admin/Member/Manager scopes use new 29-resource model
+- [X] T022 Update built-in role seed data in `framework/configstore/migrations_enterprise.go` — Owner/Admin/Member/Manager scopes use new 24-resource model
 - [X] T023 Wire real RBAC context — replaced `ui/app/enterprise/lib/contexts/rbacContext.tsx` with implementation that fetches resolved scopes from `/api/rbac/me` and checks against the 24-resource model. (Completed alongside T032 after audit found the prior stub-only state.)
 - [X] T024 [P] Add RTK Query types for RBAC in `ui/lib/types/enterprise.ts` — EnterpriseRole/EnterpriseUser/Assignment types with 24-resource scopes. (Completed alongside T032.)
 - [X] T025 [P] Update RTK Query hooks in `ui/lib/store/apis/enterpriseApi.ts` — roles + users + assignments CRUD wired to new `transports/bifrost-http/handlers/rbac.go` handler. (Completed alongside T032.)

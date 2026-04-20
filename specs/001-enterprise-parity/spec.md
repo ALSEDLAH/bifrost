@@ -1350,10 +1350,10 @@ available, and a confirmation email is sent.
 - **FR-025** *(DESCOPED 2026-04-20 per SR-01 — US11 net-new `plugins/logexport/`; needs own spec)*: System MUST support log export to at minimum AWS S3,
   Azure Blob, Google Cloud Storage, MongoDB/DocumentDB, and OTLP
   collector, with both streaming and scheduled modes.
-- **FR-026**: System MUST offer an executive dashboard at organization
+- **FR-026** *(DESCOPED 2026-04-20 per SR-01 — US12; no upstream user-rankings / per-user aggregation endpoint exists, needs own spec)*: System MUST offer an executive dashboard at organization
   level aggregating adoption, cost, and guardrail metrics across
   all workspaces.
-- **FR-027**: System MUST support per-workspace configurable retention
+- **FR-027** *(ALREADY_SHIPPED upstream — `TableClientConfig.LogRetentionDays` + `/workspace/config/logging` UI; per-workspace granularity is a future extension)*: System MUST support per-workspace configurable retention
   periods for logs and metrics.
 - **FR-028**: Every enterprise feature (per the Constitution) MUST
   emit OpenTelemetry spans, Prometheus metrics, and audit log

@@ -9,7 +9,7 @@ Enable Bifrost's 26 hidden enterprise features by:
 1. **Re-enabling** the governance and prompts plugins in enterprise mode
 2. **Removing** the redundant enterprise-gate plugin
 3. **Filling** all 26 ContactUsView fallback stubs with real implementations
-4. **Wiring** real RBAC enforcement using the frontend's 29-resource model
+4. **Wiring** the real RBAC scope model (24 resources × 6 operations) for UI-side `useRbac` gating (server-side enforcement explicitly out of v1 scope — see clarification 2026-04-20)
 5. **Adding** missing backend handlers only where upstream has none
 
 **Core insight**: Bifrost upstream ships ~40% of the enterprise surface —
@@ -22,7 +22,7 @@ is to **enable, fill, and connect** — not rebuild.
 - US8 DROPPED — governance plugin already ships budgets/rate-limits
 - Enterprise-gate plugin REMOVED — redundant with governance's VK→Team→Customer resolution
 - `governance_customers` = organizations, `governance_teams` = workspaces — no new tables
-- RBAC aligned to frontend's 29 resources × 6 operations
+- RBAC aligned to frontend's 24 resources × 6 operations
 - Fill existing fallback stubs — drop parallel routes
 - US30 added for 4 previously uncovered stubs (MCP tool groups, MCP auth, large payload, proxy)
 - SC-020 added: zero ContactUsView stubs in enterprise build
@@ -313,7 +313,7 @@ delivered by filling fallback stubs + adding missing handlers.
 | License scaffold | ✅ `plugins/license/` | Keep; implement in Phase 5 |
 | IS_ENTERPRISE flag | ✅ UI + backend | Use as-is |
 | 26 UI fallback stubs | ✅ ContactUsView | Fill with real implementations |
-| RBAC context (29 resources) | ✅ Fallback always-true | Wire real enforcement |
+| RBAC context (24 resources) | ✅ Fallback always-true | Wire UI gating via `/api/rbac/me` (v1); server-side scope enforcement defers to a future spec |
 | Config schema anchors | ✅ guardrails, audit, cluster, scim | Extend as needed |
 | Deployment mode enum | ✅ `framework/deploymentmode/` | Use as-is |
 | Encryption infrastructure | ✅ `framework/encrypt/` | Use; extend for BYOK |
