@@ -1,13 +1,18 @@
-// SSO OIDC handler tests (spec 023). The IdP is a stub httptest
-// server returning a pre-baked discovery doc + token response.
+// SSO OIDC handler tests (specs 023 + 024). The stub IdP RSA-signs
+// id_tokens so it exercises the spec-024 verifier end-to-end.
 
 package handlers
 
 import (
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -21,14 +26,46 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// stubIdP returns an httptest.Server that exposes a discovery doc
-// and a token endpoint. The token endpoint returns an unsigned JWT
-// (signature segment is "sig") with the requested email/sub claims.
-func stubIdP(t *testing.T, sub, email string) *httptest.Server {
+// signingKey holds the RSA private key + matching kid the stub IdP
+// uses to sign tokens.
+type signingKey struct {
+	priv *rsa.PrivateKey
+	kid  string
+}
+
+// b64u is shorthand for raw-URL base64 encode.
+func b64u(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
+
+// signRS256 builds and RSA-signs a JWT with the given header overrides
+// and payload claims.
+func signRS256(t *testing.T, k *signingKey, headerOverride map[string]string, payload map[string]any) string {
 	t.Helper()
+	header := map[string]string{"alg": "RS256", "typ": "JWT", "kid": k.kid}
+	for kk, vv := range headerOverride {
+		header[kk] = vv
+	}
+	hb, _ := json.Marshal(header)
+	pb, _ := json.Marshal(payload)
+	signingInput := b64u(hb) + "." + b64u(pb)
+	sum := sha256.Sum256([]byte(signingInput))
+	sig, err := rsa.SignPKCS1v15(rand.Reader, k.priv, crypto.SHA256, sum[:])
+	require.NoError(t, err)
+	return signingInput + "." + b64u(sig)
+}
+
+// stubIdP returns an httptest.Server that publishes a discovery doc,
+// a JWKS doc backed by a fresh RSA key, and a token endpoint that
+// signs claims with that key. Returns the server + the signing key
+// so individual tests can mint extra tokens.
+func stubIdP(t *testing.T, sub, email string) (*httptest.Server, *signingKey) {
+	t.Helper()
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	key := &signingKey{priv: priv, kid: "test-kid"}
+
 	mux := http.NewServeMux()
 	var srv *httptest.Server
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"issuer":                 srv.URL,
@@ -37,15 +74,23 @@ func stubIdP(t *testing.T, sub, email string) *httptest.Server {
 			"jwks_uri":               srv.URL + "/jwks",
 		})
 	})
-	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
-		payload := map[string]any{
+	mux.HandleFunc("/jwks", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		nBytes := key.priv.N.Bytes()
+		eBytes := big.NewInt(int64(key.priv.E)).Bytes()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"keys": []map[string]any{{
+				"kid": key.kid, "kty": "RSA", "use": "sig", "alg": "RS256",
+				"n": b64u(nBytes), "e": b64u(eBytes),
+			}},
+		})
+	})
+	mux.HandleFunc("/token", func(w http.ResponseWriter, _ *http.Request) {
+		idTok := signRS256(t, key, nil, map[string]any{
 			"sub": sub, "email": email,
 			"iss": srv.URL, "aud": "test-client",
 			"exp": time.Now().Add(time.Hour).Unix(),
-		}
-		body, _ := json.Marshal(payload)
-		idTok := "eyJhbGciOiJSUzI1NiJ9." +
-			base64.RawURLEncoding.EncodeToString(body) + ".sig"
+		})
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id_token":     idTok,
@@ -55,7 +100,7 @@ func stubIdP(t *testing.T, sub, email string) *httptest.Server {
 	})
 	srv = httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
-	return srv
+	return srv, key
 }
 
 // newSSOTestStore: same shape as the SCIM test store but separately
@@ -173,7 +218,7 @@ func TestSSO_PutConfig_RejectsEnabledWithoutIssuer(t *testing.T) {
 func TestSSO_Start_RedirectsToIdP(t *testing.T) {
 	store := newSSOTestStore(t)
 	h := NewSSOOIDCHandler(store, &mockLogger{})
-	idp := stubIdP(t, "user-1", "fred@example.com")
+	idp, _ := stubIdP(t, "user-1", "fred@example.com")
 	enableSSO(t, h, idp.URL, false, nil)
 
 	ctx := &fasthttp.RequestCtx{}
@@ -229,7 +274,7 @@ func runFullCallback(t *testing.T, h *SSOOIDCHandler) (int, map[string]any) {
 func TestSSO_Callback_ResolvesExistingUser(t *testing.T) {
 	store := newSSOTestStore(t)
 	h := NewSSOOIDCHandler(store, &mockLogger{})
-	idp := stubIdP(t, "user-1", "fred@example.com")
+	idp, _ := stubIdP(t, "user-1", "fred@example.com")
 	enableSSO(t, h, idp.URL, false, nil)
 	pinDefaultOrgForSSO(t, store, "org-x")
 	require.NoError(t, store.DB().Create(&tables_enterprise.TableUser{
@@ -255,7 +300,7 @@ func TestSSO_Callback_ResolvesExistingUser(t *testing.T) {
 func TestSSO_Callback_UnknownUser_NoJIT_Returns403(t *testing.T) {
 	store := newSSOTestStore(t)
 	h := NewSSOOIDCHandler(store, &mockLogger{})
-	idp := stubIdP(t, "ghost-sub", "ghost@example.com")
+	idp, _ := stubIdP(t, "ghost-sub", "ghost@example.com")
 	enableSSO(t, h, idp.URL, false, nil) // JIT off
 	pinDefaultOrgForSSO(t, store, "org-x")
 
@@ -268,7 +313,7 @@ func TestSSO_Callback_UnknownUser_NoJIT_Returns403(t *testing.T) {
 func TestSSO_Callback_UnknownUser_JITOn_CreatesUser(t *testing.T) {
 	store := newSSOTestStore(t)
 	h := NewSSOOIDCHandler(store, &mockLogger{})
-	idp := stubIdP(t, "jit-sub", "jit@example.com")
+	idp, _ := stubIdP(t, "jit-sub", "jit@example.com")
 	enableSSO(t, h, idp.URL, true, nil) // JIT on
 	pinDefaultOrgForSSO(t, store, "org-x")
 
@@ -289,7 +334,7 @@ func TestSSO_Callback_UnknownUser_JITOn_CreatesUser(t *testing.T) {
 func TestSSO_Callback_RejectsUnknownState(t *testing.T) {
 	store := newSSOTestStore(t)
 	h := NewSSOOIDCHandler(store, &mockLogger{})
-	idp := stubIdP(t, "x", "x@example.com")
+	idp, _ := stubIdP(t, "x", "x@example.com")
 	enableSSO(t, h, idp.URL, false, nil)
 
 	cbCtx := &fasthttp.RequestCtx{}
@@ -303,7 +348,7 @@ func TestSSO_Callback_RejectsUnknownState(t *testing.T) {
 func TestSSO_Callback_StateIsSingleUse(t *testing.T) {
 	store := newSSOTestStore(t)
 	h := NewSSOOIDCHandler(store, &mockLogger{})
-	idp := stubIdP(t, "user-1", "fred@example.com")
+	idp, _ := stubIdP(t, "user-1", "fred@example.com")
 	enableSSO(t, h, idp.URL, false, nil)
 	pinDefaultOrgForSSO(t, store, "org-x")
 	require.NoError(t, store.DB().Create(&tables_enterprise.TableUser{
@@ -329,7 +374,7 @@ func TestSSO_Callback_StateIsSingleUse(t *testing.T) {
 func TestSSO_Callback_DomainAllowList_BlocksOther(t *testing.T) {
 	store := newSSOTestStore(t)
 	h := NewSSOOIDCHandler(store, &mockLogger{})
-	idp := stubIdP(t, "x-sub", "x@evil.com")
+	idp, _ := stubIdP(t, "x-sub", "x@evil.com")
 	enableSSO(t, h, idp.URL, true, []string{"example.com"})
 	pinDefaultOrgForSSO(t, store, "org-x")
 

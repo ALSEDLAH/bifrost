@@ -422,9 +422,12 @@ func (h *SSOOIDCHandler) callback(ctx *fasthttp.RequestCtx) {
 		SendJSONWithStatus(ctx, map[string]any{"error": "invalid token response"}, fasthttp.StatusBadGateway)
 		return
 	}
-	claims, err := parseIDTokenClaims(tok.IDToken)
+	// Spec 024: cryptographically verify the id_token against the
+	// IdP's JWKS plus standard claims (iss/aud/exp).
+	claims, err := h.verifyIDToken(tok.IDToken, doc.JWKSURI, cfg.Issuer, cfg.ClientID)
 	if err != nil {
-		SendJSONWithStatus(ctx, map[string]any{"error": "invalid id_token: " + err.Error()}, fasthttp.StatusBadGateway)
+		emitSSOAudit("auth.login_denied", "", "denied", map[string]any{"reason": "invalid_id_token", "detail": err.Error()})
+		SendJSONWithStatus(ctx, map[string]any{"error": "invalid_id_token", "detail": err.Error()}, fasthttp.StatusUnauthorized)
 		return
 	}
 
@@ -472,11 +475,25 @@ func (h *SSOOIDCHandler) callback(ctx *fasthttp.RequestCtx) {
 	}
 
 	expiresAt := h.nowFn().Add(sessionExpiry).UTC()
+	sessionTok := IssueSessionToken(user.ID, expiresAt)
+
+	cookie := fasthttp.AcquireCookie()
+	cookie.SetKey(sessionCookieName)
+	cookie.SetValue(sessionTok)
+	cookie.SetPath("/")
+	cookie.SetHTTPOnly(true)
+	cookie.SetSecure(true)
+	cookie.SetSameSite(fasthttp.CookieSameSiteLaxMode)
+	cookie.SetMaxAge(int(sessionExpiry / time.Second))
+	ctx.Response.Header.SetCookie(cookie)
+	fasthttp.ReleaseCookie(cookie)
+
 	emitSSOAudit("auth.login", claims.Email, "allowed", map[string]any{"user_id": user.ID})
 	SendJSON(ctx, map[string]any{
-		"user_id":    user.ID,
-		"email":      user.Email,
-		"expires_at": expiresAt.Format(time.RFC3339),
+		"user_id":       user.ID,
+		"email":         user.Email,
+		"expires_at":    expiresAt.Format(time.RFC3339),
+		"session_token": sessionTok,
 	})
 }
 
