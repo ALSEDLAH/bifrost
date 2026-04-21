@@ -161,7 +161,14 @@ func Emit(ctx context.Context, bctx *schemas.BifrostContext, e Entry) error {
 		sink.chain.mu.Unlock()
 	}
 
-	return sink.db.WithContext(ctx).Create(&row).Error
+	if err := sink.db.WithContext(ctx).Create(&row).Error; err != nil {
+		return err
+	}
+	// Spec 018: mirror to configured alert channels (SIEM webhook /
+	// Slack / etc.). Fire-and-forget; failures log at Warn via the
+	// dispatcher's own logger and never roll back the insert.
+	dispatchOutbound(row)
+	return nil
 }
 
 // EmitDenied is a convenience for the common "denied" outcome.

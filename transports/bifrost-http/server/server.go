@@ -1162,6 +1162,17 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	alertDispatcher := alertchannels.New(logger)
 	alertChannelsHandler := handlers.NewAlertChannelsHandler(s.Config.ConfigStore, alertDispatcher, logger)
 	alertChannelsHandler.RegisterRoutes(s.Router, middlewares...)
+	// Spec 018: wire the same dispatcher + channel list into the
+	// audit plugin so every audit.Emit insert is also mirrored to
+	// operator webhooks / Slack channels (SIEM outbound).
+	audit.SetAlertDispatcher(alertDispatcher, func() []tables_enterprise.TableAlertChannel {
+		list, err := s.Config.ConfigStore.ListAlertChannels(context.Background())
+		if err != nil {
+			logger.Warn("audit outbound: fetch channels: %v", err)
+			return nil
+		}
+		return list
+	})
 	// MCP Tool Groups CRUD (spec 005).
 	mcpToolGroupsHandler := handlers.NewMCPToolGroupsHandler(s.Config.ConfigStore, logger)
 	mcpToolGroupsHandler.RegisterRoutes(s.Router, middlewares...)

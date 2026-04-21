@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/maximhq/bifrost/core/schemas"
 	"github.com/maximhq/bifrost/framework/logstore"
@@ -33,7 +34,7 @@ func newSQLite(t *testing.T) *gorm.DB {
 }
 
 func newCtx(tc tenancy.TenantContext) *schemas.BifrostContext {
-	bctx := schemas.NewBifrostContext(context.Background())
+	bctx := schemas.NewBifrostContext(context.Background(), time.Time{})
 	bctx.SetValue(tenancy.BifrostContextKeyTenantContext, tc)
 	bctx.SetValue(tenancy.BifrostContextKeyOrganizationID, tc.OrganizationID)
 	bctx.SetValue(tenancy.BifrostContextKeyWorkspaceID, tc.WorkspaceID)
@@ -96,7 +97,7 @@ func TestEmit_RejectsMissingTenant(t *testing.T) {
 	p, _ := audit.Init(context.Background(), db, nil, audit.Config{})
 	defer p.Cleanup()
 
-	emptyCtx := schemas.NewBifrostContext(context.Background())
+	emptyCtx := schemas.NewBifrostContext(context.Background(), time.Time{})
 	err := audit.Emit(context.Background(), emptyCtx, audit.Entry{
 		Action: "workspace.update", ResourceType: "workspace", ResourceID: "ws-1",
 	})

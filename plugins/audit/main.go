@@ -183,6 +183,11 @@ func (p *Plugin) runAsyncWorker(ctx context.Context) {
 			if p.logger != nil {
 				p.logger.Warn(fmt.Sprintf("audit: async batch flush failed: %v", err))
 			}
+		} else {
+			// Spec 018: fan each inserted row out to alert channels.
+			for i := range batch {
+				dispatchOutbound(batch[i])
+			}
 		}
 		batch = batch[:0]
 	}
