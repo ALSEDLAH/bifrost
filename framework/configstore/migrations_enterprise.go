@@ -35,6 +35,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE009SCIMConfig(ctx),
 		migrationE010Guardrails(ctx),
 		migrationE011PromptDeployments(ctx),
+		migrationE012SCIMGroups(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -330,6 +331,36 @@ func migrationE010Guardrails(ctx context.Context) *migrator.Migration {
 			} {
 				if err := tx.Migrator().DropTable(t); err != nil {
 					return fmt.Errorf("drop guardrails table: %w", err)
+				}
+			}
+			return nil
+		},
+	}
+}
+
+// migrationE012SCIMGroups creates ent_scim_groups + ent_scim_group_members
+// for the SCIM Groups write-side (spec 022).
+func migrationE012SCIMGroups(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E012_scim_groups",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(
+				&tables_enterprise.TableSCIMGroup{},
+				&tables_enterprise.TableSCIMGroupMember{},
+			); err != nil {
+				return fmt.Errorf("auto-migrate scim_groups: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			for _, t := range []any{
+				&tables_enterprise.TableSCIMGroupMember{},
+				&tables_enterprise.TableSCIMGroup{},
+			} {
+				if err := tx.Migrator().DropTable(t); err != nil {
+					return fmt.Errorf("drop scim_groups table: %w", err)
 				}
 			}
 			return nil
