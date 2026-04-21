@@ -1217,6 +1217,8 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	handlers.NewSCIMGroupsHandler(s.Config.ConfigStore, logger).RegisterRoutes(s.Router, middlewares...)
 	// SSO OIDC config + login flow (spec 023).
 	handlers.NewSSOOIDCHandler(s.Config.ConfigStore, logger).RegisterRoutes(s.Router, middlewares...)
+	// SSO-session-gated /api/auth/me + /api/auth/logout (spec 025).
+	handlers.NewSSOSessionHandler(s.Config.ConfigStore, logger).RegisterRoutes(s.Router, middlewares...)
 	// Guardrails admin CRUD (spec 010) + runtime enforcement (spec 016).
 	guardrailsHandler := handlers.NewGuardrailsHandler(s.Config.ConfigStore, logger)
 	guardrailsHandler.RegisterRoutes(s.Router, middlewares...)
