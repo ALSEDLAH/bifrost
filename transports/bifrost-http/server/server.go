@@ -1205,9 +1205,12 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	} else if err != nil {
 		logger.Warn("logexport: init failed (%v) — forwarding disabled, admin CRUD still works", err)
 	}
-	// SCIM admin config (spec 009). /scim/v2/* protocol endpoints are phase 2.
+	// SCIM admin config (spec 009) + SCIM 2.0 Users read-only (spec 020).
 	scimCfgHandler := handlers.NewSCIMConfigHandler(s.Config.ConfigStore, logger)
 	scimCfgHandler.RegisterRoutes(s.Router, middlewares...)
+	// Read-only /scim/v2/Users endpoints — bearer-auth via ent_scim_config.
+	scimUsersHandler := handlers.NewSCIMUsersHandler(s.Config.ConfigStore, logger)
+	scimUsersHandler.RegisterRoutes(s.Router, middlewares...)
 	// Guardrails admin CRUD (spec 010) + runtime enforcement (spec 016).
 	guardrailsHandler := handlers.NewGuardrailsHandler(s.Config.ConfigStore, logger)
 	guardrailsHandler.RegisterRoutes(s.Router, middlewares...)
