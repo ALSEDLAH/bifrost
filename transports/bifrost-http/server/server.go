@@ -1215,6 +1215,8 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	scimUsersHandler.RegisterWriteRoutes(s.Router, middlewares...)
 	// SCIM Groups read+write (spec 022) — same bearer auth.
 	handlers.NewSCIMGroupsHandler(s.Config.ConfigStore, logger).RegisterRoutes(s.Router, middlewares...)
+	// SSO OIDC config + login flow (spec 023).
+	handlers.NewSSOOIDCHandler(s.Config.ConfigStore, logger).RegisterRoutes(s.Router, middlewares...)
 	// Guardrails admin CRUD (spec 010) + runtime enforcement (spec 016).
 	guardrailsHandler := handlers.NewGuardrailsHandler(s.Config.ConfigStore, logger)
 	guardrailsHandler.RegisterRoutes(s.Router, middlewares...)

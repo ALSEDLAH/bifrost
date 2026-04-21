@@ -36,6 +36,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE010Guardrails(ctx),
 		migrationE011PromptDeployments(ctx),
 		migrationE012SCIMGroups(ctx),
+		migrationE013SSOConfig(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -334,6 +335,25 @@ func migrationE010Guardrails(ctx context.Context) *migrator.Migration {
 				}
 			}
 			return nil
+		},
+	}
+}
+
+// migrationE013SSOConfig creates ent_sso_config — singleton row holding
+// the OIDC IdP configuration (spec 023).
+func migrationE013SSOConfig(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E013_sso_config",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TableSSOConfig{}); err != nil {
+				return fmt.Errorf("auto-migrate sso_config: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TableSSOConfig{})
 		},
 	}
 }
