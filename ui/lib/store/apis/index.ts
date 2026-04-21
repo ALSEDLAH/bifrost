@@ -21,3 +21,4 @@ export * from "./scimConfigApi";
 export * from "./guardrailsApi";
 export * from "./promptDeploymentsApi";
 export * from "./adaptiveRoutingApi";
+export * from "./reportsApi";

@@ -1155,6 +1155,9 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 		auditLogsHandler := handlers.NewAuditLogsHandler(s.Config.ConfigStore.DB(), nil, logger)
 		auditLogsHandler.RegisterRoutes(s.Router, middlewares...)
 	}
+	// Compliance reports — aggregate views over ent_audit_entries (spec 019).
+	complianceReportsHandler := handlers.NewComplianceReportsHandler(s.Config.ConfigStore.DB(), logger)
+	complianceReportsHandler.RegisterRoutes(s.Router, middlewares...)
 	// RBAC role/user/assignment handler (US2).
 	rbacHandler := handlers.NewRBACHandler(s.Config.ConfigStore.DB(), logger)
 	rbacHandler.RegisterRoutes(s.Router, middlewares...)
