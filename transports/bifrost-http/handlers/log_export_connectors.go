@@ -15,12 +15,25 @@ import (
 )
 
 type LogExportConnectorsHandler struct {
-	store  configstore.ConfigStore
-	logger schemas.Logger
+	store       configstore.ConfigStore
+	invalidator func() // optional — called after successful CRUD mutations (spec 017 FR-003)
+	logger      schemas.Logger
 }
 
 func NewLogExportConnectorsHandler(store configstore.ConfigStore, logger schemas.Logger) *LogExportConnectorsHandler {
 	return &LogExportConnectorsHandler{store: store, logger: logger}
+}
+
+// SetInvalidator installs a callback invoked after every successful
+// connector CRUD mutation. The logexport runtime plugin wires its
+// Invalidate() here at server startup so new/updated/deleted
+// connectors take effect on the next Inject (<1s) rather than
+// waiting the 30s TTL.
+func (h *LogExportConnectorsHandler) SetInvalidator(fn func()) {
+	if h == nil {
+		return
+	}
+	h.invalidator = fn
 }
 
 func (h *LogExportConnectorsHandler) RegisterRoutes(r *router.Router, middlewares ...schemas.BifrostHTTPMiddleware) {
@@ -80,6 +93,9 @@ func (h *LogExportConnectorsHandler) create(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
 	}
+	if h.invalidator != nil {
+		h.invalidator()
+	}
 	SendJSONWithStatus(ctx, row, fasthttp.StatusCreated)
 }
 
@@ -112,6 +128,9 @@ func (h *LogExportConnectorsHandler) update(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
 	}
+	if h.invalidator != nil {
+		h.invalidator()
+	}
 	SendJSON(ctx, existing)
 }
 
@@ -120,6 +139,9 @@ func (h *LogExportConnectorsHandler) delete(ctx *fasthttp.RequestCtx) {
 	if err := h.store.DeleteLogExportConnector(ctx, id); err != nil {
 		SendError(ctx, fasthttp.StatusInternalServerError, err.Error())
 		return
+	}
+	if h.invalidator != nil {
+		h.invalidator()
 	}
 	ctx.SetStatusCode(fasthttp.StatusNoContent)
 }

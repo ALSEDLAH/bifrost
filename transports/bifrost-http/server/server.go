@@ -29,6 +29,7 @@ import (
 	"github.com/maximhq/bifrost/plugins/audit"
 	"github.com/maximhq/bifrost/plugins/governance"
 	"github.com/maximhq/bifrost/plugins/guardrailsruntime"
+	"github.com/maximhq/bifrost/plugins/logexport"
 	"github.com/maximhq/bifrost/plugins/logging"
 	"github.com/maximhq/bifrost/plugins/prompts"
 	"github.com/maximhq/bifrost/plugins/semanticcache"
@@ -1170,9 +1171,26 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	// Cluster status (spec 007) — single-node self-report.
 	clusterStatusHandler := handlers.NewClusterStatusHandler(os.Getenv("BIFROST_VERSION"))
 	clusterStatusHandler.RegisterRoutes(s.Router, middlewares...)
-	// Log export connectors CRUD (spec 008). Forwarding plugin is phase 2.
+	// Log export connectors CRUD (spec 008) + runtime forwarder (spec 017).
 	logExportHandler := handlers.NewLogExportConnectorsHandler(s.Config.ConfigStore, logger)
 	logExportHandler.RegisterRoutes(s.Router, middlewares...)
+	// Runtime plugin: ObservabilityPlugin.Inject forwards every
+	// completed trace to enabled Datadog connectors. BigQuery
+	// connectors are configured but the forwarder adapter is
+	// tracked as spec 018.
+	if logExportPlugin, err := logexport.Init(ctx, s.Config.ConfigStore, logger); err == nil && logExportPlugin != nil {
+		logExportHandler.SetInvalidator(logExportPlugin.Invalidate)
+		order := 110
+		placement := schemas.PluginPlacementPostBuiltin
+		s.Config.SetPluginOrderInfo(logexport.PluginName, &placement, &order)
+		if regErr := s.Config.ReloadPlugin(logExportPlugin); regErr != nil {
+			logger.Warn("logexport: plugin registration failed: %v", regErr)
+		} else {
+			s.Config.SortAndRebuildPlugins()
+		}
+	} else if err != nil {
+		logger.Warn("logexport: init failed (%v) — forwarding disabled, admin CRUD still works", err)
+	}
 	// SCIM admin config (spec 009). /scim/v2/* protocol endpoints are phase 2.
 	scimCfgHandler := handlers.NewSCIMConfigHandler(s.Config.ConfigStore, logger)
 	scimCfgHandler.RegisterRoutes(s.Router, middlewares...)
