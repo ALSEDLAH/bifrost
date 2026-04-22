@@ -38,6 +38,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE012SCIMGroups(ctx),
 		migrationE013SSOConfig(ctx),
 		migrationE014SessionRevocations(ctx),
+		migrationE015AuditRetention(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -336,6 +337,25 @@ func migrationE010Guardrails(ctx context.Context) *migrator.Migration {
 				}
 			}
 			return nil
+		},
+	}
+}
+
+// migrationE015AuditRetention creates the singleton audit retention
+// config table used by spec 027's prune handler.
+func migrationE015AuditRetention(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E015_audit_retention",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TableAuditRetentionConfig{}); err != nil {
+				return fmt.Errorf("auto-migrate audit_retention_config: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TableAuditRetentionConfig{})
 		},
 	}
 }

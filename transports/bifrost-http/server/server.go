@@ -1154,6 +1154,11 @@ func (s *BifrostHTTPServer) RegisterAPIRoutes(ctx context.Context, callbacks Ser
 	if s.Config.LogsStore != nil {
 		auditLogsHandler := handlers.NewAuditLogsHandler(s.Config.ConfigStore.DB(), nil, logger)
 		auditLogsHandler.RegisterRoutes(s.Router, middlewares...)
+		// Spec 027 — retention policy + prune endpoints (matches the
+		// existing handler's DB choice for consistency).
+		auditRetentionHandler := handlers.NewAuditRetentionHandler(
+			s.Config.ConfigStore.DB(), s.Config.ConfigStore.DB(), logger)
+		auditRetentionHandler.RegisterRoutes(s.Router, middlewares...)
 	}
 	// Compliance reports — aggregate views over ent_audit_entries (spec 019).
 	complianceReportsHandler := handlers.NewComplianceReportsHandler(s.Config.ConfigStore.DB(), logger)
