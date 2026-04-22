@@ -37,6 +37,7 @@ func RegisterEnterpriseMigrations(ctx context.Context, db *gorm.DB) error {
 		migrationE011PromptDeployments(ctx),
 		migrationE012SCIMGroups(ctx),
 		migrationE013SSOConfig(ctx),
+		migrationE014SessionRevocations(ctx),
 	}
 
 	m := migrator.New(db, migrator.DefaultOptions, migrations)
@@ -335,6 +336,25 @@ func migrationE010Guardrails(ctx context.Context) *migrator.Migration {
 				}
 			}
 			return nil
+		},
+	}
+}
+
+// migrationE014SessionRevocations creates the per-user session
+// revocation list used by spec 026's forced-logout flow.
+func migrationE014SessionRevocations(ctx context.Context) *migrator.Migration {
+	return &migrator.Migration{
+		ID: "E014_session_revocations",
+		Migrate: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			if err := tx.AutoMigrate(&tables_enterprise.TableSessionRevocation{}); err != nil {
+				return fmt.Errorf("auto-migrate session_revocations: %w", err)
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			tx = tx.WithContext(ctx)
+			return tx.Migrator().DropTable(&tables_enterprise.TableSessionRevocation{})
 		},
 	}
 }

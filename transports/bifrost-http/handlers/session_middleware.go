@@ -45,6 +45,10 @@ func RequireSession() schemas.BifrostHTTPMiddleware {
 				sendSessionError(ctx, fasthttp.StatusUnauthorized, "invalid_session")
 				return
 			}
+			if IsTokenRevoked(uid, exp) {
+				sendSessionError(ctx, fasthttp.StatusUnauthorized, "session_revoked")
+				return
+			}
 			ctx.SetUserValue(CtxKeySessionUserID, uid)
 			ctx.SetUserValue(CtxKeySessionExpiresAt, exp)
 			next(ctx)
@@ -75,17 +79,22 @@ func sendSessionError(ctx *fasthttp.RequestCtx, status int, msg string) {
 // file rather than alongside SSO so the auth-handler-vs-session-handler
 // split is obvious.
 type SSOSessionHandler struct {
-	store  configstore.ConfigStore
-	db     *gorm.DB
-	logger schemas.Logger
+	store        configstore.ConfigStore
+	db           *gorm.DB
+	logger       schemas.Logger
+	revokeCache  *dbRevocationChecker
 }
 
 func NewSSOSessionHandler(store configstore.ConfigStore, logger schemas.Logger) *SSOSessionHandler {
-	return &SSOSessionHandler{store: store, db: store.DB(), logger: logger}
+	h := &SSOSessionHandler{store: store, db: store.DB(), logger: logger}
+	h.revokeCache = newDBRevocationChecker(h.db)
+	// Wire the package-level revocation checker so RequireSession sees
+	// it. Multiple handler instances would just overwrite each other,
+	// which is fine in practice since the production path constructs
+	// exactly one.
+	SetSessionRevocationChecker(h.revokeCache.check)
+	return h
 }
-
-// (struct fields below are intentional — Go's package linter is happy
-// once the constructor + accessors compile against them.)
 
 func (h *SSOSessionHandler) RegisterRoutes(r *router.Router, middlewares ...schemas.BifrostHTTPMiddleware) {
 	// /me requires a valid session — chain the spec 025 middleware on
@@ -96,6 +105,9 @@ func (h *SSOSessionHandler) RegisterRoutes(r *router.Router, middlewares ...sche
 	// /logout intentionally NOT gated — clearing an already-cleared
 	// cookie should still 204.
 	r.POST("/api/auth/logout", lib.ChainMiddlewares(h.logout, middlewares...))
+	// Spec 026 revoke endpoints — same handler, separate registration
+	// so the new routes are obvious in startup logs.
+	h.RegisterRevokeRoutes(r, middlewares...)
 }
 
 func (h *SSOSessionHandler) me(ctx *fasthttp.RequestCtx) {
