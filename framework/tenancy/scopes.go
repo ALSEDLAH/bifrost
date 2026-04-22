@@ -1,8 +1,10 @@
 // Scope definitions for RBAC (US2).
 //
-// Aligned to the frontend's RbacResource (24 resources) and
-// RbacOperation (6 operations) enums defined in
-// ui/app/_fallbacks/enterprise/lib/contexts/rbacContext.tsx.
+// Aligned to the frontend's RbacResource and RbacOperation enums
+// defined in ui/app/_fallbacks/enterprise/lib/contexts/rbacContext.tsx.
+// The exact counts evolve as the catalog grows — code that needs the
+// numbers should call len(Resources) / len(Operations) rather than
+// hardcode a literal.
 
 package tenancy
 

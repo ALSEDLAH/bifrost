@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/maximhq/bifrost/framework/configstore"
+	"github.com/maximhq/bifrost/framework/tenancy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/fasthttp"
@@ -52,7 +53,7 @@ func rbacReq(method, body string) *fasthttp.RequestCtx {
 
 // ---- Meta ---------------------------------------------------------
 
-func TestRBAC_Meta_Returns24ResourcesAnd6Operations(t *testing.T) {
+func TestRBAC_Meta_MirrorsTenancyCatalog(t *testing.T) {
 	h := setupRBACHandler(t)
 	ctx := rbacReq("GET", "")
 	h.handleMeta(ctx)
@@ -60,8 +61,10 @@ func TestRBAC_Meta_Returns24ResourcesAnd6Operations(t *testing.T) {
 	require.Equal(t, fasthttp.StatusOK, ctx.Response.StatusCode(), string(ctx.Response.Body()))
 	var got rbacMetaResponse
 	require.NoError(t, json.Unmarshal(ctx.Response.Body(), &got))
-	assert.Len(t, got.Resources, 24, "expected 24 RBAC resources")
-	assert.Len(t, got.Operations, 6, "expected 6 RBAC operations")
+	// Catalog-agnostic — adding/removing a resource shouldn't break
+	// this test, only the catalog/UI alignment will catch that.
+	assert.ElementsMatch(t, tenancy.Resources, got.Resources, "RBAC meta resources must mirror tenancy.Resources")
+	assert.ElementsMatch(t, tenancy.Operations, got.Operations, "RBAC meta operations must mirror tenancy.Operations")
 	assert.ElementsMatch(t,
 		[]string{"Owner", "Admin", "Manager", "Member"},
 		got.BuiltinRoles,
@@ -79,7 +82,12 @@ func TestRBAC_Me_ReturnsWildcardInSingleOrgMode(t *testing.T) {
 	var got rbacMeResponse
 	require.NoError(t, json.Unmarshal(ctx.Response.Body(), &got))
 	assert.Contains(t, got.Scopes, "*")
-	assert.Len(t, got.Permissions, 24)
+	assert.Len(t, got.Permissions, len(tenancy.Resources),
+		"permissions map should expose every catalog resource")
+	for _, r := range tenancy.Resources {
+		assert.ElementsMatch(t, tenancy.Operations, got.Permissions[r],
+			"every catalog resource should grant every operation in single-org mode")
+	}
 	assert.NotEmpty(t, got.OrganizationID)
 }
 
