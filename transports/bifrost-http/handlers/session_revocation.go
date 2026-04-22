@@ -128,12 +128,45 @@ func (c *dbRevocationChecker) invalidate(userID string) {
 }
 
 // RegisterRevokeRoutes wires the /api/auth/sessions/revoke + revoke-self
-// endpoints on the same SSOSessionHandler.
+// endpoints on the same SSOSessionHandler. Spec 029 adds /refresh on
+// the same gated chain since the auth requirements are identical.
 func (h *SSOSessionHandler) RegisterRevokeRoutes(r *router.Router, middlewares ...schemas.BifrostHTTPMiddleware) {
 	gated := append([]schemas.BifrostHTTPMiddleware{}, middlewares...)
 	gated = append(gated, RequireSession())
 	r.POST("/api/auth/sessions/revoke", lib.ChainMiddlewares(h.revokeOther, gated...))
 	r.POST("/api/auth/sessions/revoke-self", lib.ChainMiddlewares(h.revokeSelf, gated...))
+	r.POST("/api/auth/sessions/refresh", lib.ChainMiddlewares(h.refresh, gated...))
+}
+
+// refresh re-issues a fresh 8h session token for the caller. Works as
+// long as RequireSession already accepted the caller — meaning the
+// current token was valid AND not revoked.
+func (h *SSOSessionHandler) refresh(ctx *fasthttp.RequestCtx) {
+	uid, _ := ctx.UserValue(CtxKeySessionUserID).(string)
+	if uid == "" {
+		sendSessionError(ctx, fasthttp.StatusUnauthorized, "unauthenticated")
+		return
+	}
+	expiresAt := time.Now().Add(sessionExpiry).UTC()
+	tok := IssueSessionToken(uid, expiresAt)
+
+	cookie := fasthttp.AcquireCookie()
+	cookie.SetKey(sessionCookieName)
+	cookie.SetValue(tok)
+	cookie.SetPath("/")
+	cookie.SetHTTPOnly(true)
+	cookie.SetSecure(true)
+	cookie.SetSameSite(fasthttp.CookieSameSiteLaxMode)
+	cookie.SetMaxAge(int(sessionExpiry / time.Second))
+	ctx.Response.Header.SetCookie(cookie)
+	fasthttp.ReleaseCookie(cookie)
+
+	emitSessionAudit("auth.session_refreshed", uid, "allowed", map[string]any{"user_id": uid})
+	SendJSON(ctx, map[string]any{
+		"user_id":       uid,
+		"session_token": tok,
+		"expires_at":    expiresAt.Format(time.RFC3339),
+	})
 }
 
 // callerIsAdmin returns true when the logged-in user holds a role
